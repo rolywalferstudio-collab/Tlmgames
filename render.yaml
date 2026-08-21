@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: tlm-games
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: JWT_SECRET
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: PORT
+        value: 3000

@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TLM Games Studio</title>
+<link rel="icon" href="games/royaumes-colonies/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<style>
+  :root{
+    --bg:#0a0d0a; --panel:#11150f; --panel-2:#161b13; --line:#2b3226;
+    --gold:#c9a227; --gold-bright:#e8c96a; --parchment:#e9e0c6; --parchment-dim:#a8a48c;
+    --crimson:#7a2020; --crimson-bright:#9c2b2b; --green-dim:#5b6b57;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--parchment); font-family:'Spectral',serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  a{color:inherit;}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 28px; border-bottom:1px solid var(--line); background:rgba(10,13,10,0.9); flex-shrink:0;
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{
+    width:28px;height:28px;
+    background:linear-gradient(160deg,var(--gold-bright),var(--gold) 60%,#8a6c14);
+    clip-path:polygon(50% 0%, 100% 22%, 100% 62%, 50% 100%, 0% 62%, 0% 22%);
+  }
+  .brand-name{font-family:'Cinzel',serif; font-weight:700; letter-spacing:3px; font-size:16px;}
+  .brand-name .studio-tag{color:var(--gold); font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:2px; margin-left:8px;}
+  header a.back{
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--parchment-dim); text-decoration:none; border:1px solid var(--line); padding:8px 14px;
+  }
+  header a.back:hover{color:var(--gold-bright); border-color:var(--gold);}
+
+  /* ---------------- GATE (not logged in) ---------------- */
+  #gate{
+    flex:1; display:flex; align-items:center; justify-content:center; text-align:center; padding:40px;
+  }
+  #gate .box{max-width:420px;}
+  #gate .eyebrow{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:3px; color:var(--gold); text-transform:uppercase; margin-bottom:14px;}
+  #gate h1{font-family:'Cinzel',serif; font-size:28px; margin-bottom:14px;}
+  #gate p{color:var(--parchment-dim); line-height:1.7; margin-bottom:24px; font-size:15px;}
+  #gate a.cta{
+    display:inline-block; border:1.5px solid var(--gold); color:var(--gold-bright); text-decoration:none;
+    padding:12px 26px; font-family:'Cinzel',serif; letter-spacing:1.5px; font-size:14px; text-transform:uppercase;
+  }
+  #gate a.cta:hover{background:rgba(201,162,39,0.1);}
+
+  /* ---------------- MAIN LAYOUT ---------------- */
+  #app{flex:1; display:none; overflow:hidden;}
+  #app.active{display:flex;}
+
+  #sidebar{
+    width:280px; flex-shrink:0; border-right:1px solid var(--line); background:var(--panel);
+    display:flex; flex-direction:column; overflow-y:auto;
+  }
+  .sidebar-section{padding:18px 18px 8px;}
+  .sidebar-label{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--parchment-dim);
+    text-transform:uppercase; margin-bottom:12px;
+  }
+  .new-btn{
+    width:100%; background:var(--gold); color:#151109; border:none; padding:11px; cursor:pointer;
+    font-family:'Cinzel',serif; font-weight:700; letter-spacing:1px; font-size:13px; text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .new-btn:hover{background:var(--gold-bright);}
+  .import-btn{
+    width:100%; background:transparent; color:var(--parchment-dim); border:1px solid var(--line); padding:10px;
+    cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1px; text-transform:uppercase;
+  }
+  .import-btn:hover{border-color:var(--gold); color:var(--gold-bright);}
+
+  #project-list{padding:8px 10px 20px; flex:1;}
+  .project-item{
+    padding:12px 12px; margin-bottom:6px; cursor:pointer; border:1px solid transparent;
+    display:flex; flex-direction:column; gap:4px; transition:all .15s;
+  }
+  .project-item:hover{background:var(--panel-2);}
+  .project-item.active{border-color:var(--gold); background:var(--panel-2);}
+  .project-item .pname{font-size:14px; color:var(--parchment);}
+  .project-item .pmeta{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--parchment-dim); letter-spacing:0.5px; display:flex; gap:8px; align-items:center;}
+  .pub-dot{width:6px;height:6px;border-radius:50%; background:var(--green-dim); display:inline-block;}
+  .pub-dot.on{background:var(--gold); box-shadow:0 0 5px var(--gold);}
+  .empty-projects{padding:20px 8px; color:var(--parchment-dim); font-size:13px; line-height:1.6;}
+
+  /* ---------------- EDITOR AREA ---------------- */
+  #editor-area{flex:1; display:flex; flex-direction:column; overflow:hidden;}
+  #no-project{flex:1; display:flex; align-items:center; justify-content:center; color:var(--parchment-dim); font-size:14px; text-align:center; padding:40px;}
+
+  #project-editor{flex:1; display:none; flex-direction:column; overflow:hidden;}
+  #project-editor.active{display:flex;}
+
+  .editor-topbar{
+    display:flex; align-items:center; gap:10px; padding:12px 20px; border-bottom:1px solid var(--line);
+    background:var(--panel); flex-wrap:wrap;
+  }
+  .editor-topbar input[type=text]{
+    background:#0c0f0a; border:1px solid var(--line); color:var(--parchment); padding:9px 12px;
+    font-family:'Cinzel',serif; font-size:15px; letter-spacing:0.5px; min-width:200px;
+  }
+  .editor-topbar input[type=text]:focus{outline:none; border-color:var(--gold);}
+  .tb-btn{
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+    background:transparent; border:1px solid var(--line); color:var(--parchment-dim); padding:9px 16px; cursor:pointer;
+  }
+  .tb-btn:hover{border-color:var(--gold); color:var(--gold-bright);}
+  .tb-btn.primary{border-color:var(--gold); background:var(--gold); color:#151109; font-weight:600;}
+  .tb-btn.primary:hover{background:var(--gold-bright);}
+  .tb-btn.danger:hover{border-color:var(--crimson-bright); color:#e8b8b8;}
+  .tb-spacer{flex:1;}
+  .status-msg{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--green-dim); min-width:120px;}
+  .status-pill{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; padding:6px 12px; border:1px solid var(--line);}
+  .status-pill.draft{color:var(--parchment-dim);}
+  .status-pill.pending{color:var(--gold-bright); border-color:var(--gold);}
+  .status-pill.approved{color:#9ed48a; border-color:#3d6b32;}
+  .status-pill.rejected{color:#e8b8b8; border-color:var(--crimson);}
+  .rejection-banner{
+    background:rgba(122,32,32,0.15); border-bottom:1px solid var(--crimson); color:#e8b8b8;
+    font-size:13px; padding:12px 20px;
+  }
+
+  .split{flex:1; display:flex; overflow:hidden;}
+  .pane{flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0;}
+  .pane + .pane{border-left:1px solid var(--line);}
+  .pane-label{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--parchment-dim); padding:8px 16px; border-bottom:1px solid var(--line); background:var(--panel);
+  }
+  .CodeMirror{height:100% !important; font-size:13.5px;}
+  #preview-frame{flex:1; border:none; background:#000;}
+  .meta-row{display:flex; gap:10px; padding:10px 20px; border-bottom:1px solid var(--line); background:var(--panel-2);}
+  .meta-row input{
+    flex:1; background:#0c0f0a; border:1px solid var(--line); color:var(--parchment); padding:8px 10px;
+    font-family:'Spectral',serif; font-size:13px;
+  }
+
+  /* ---------------- MODALS (new project / import) ---------------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(4,5,3,0.75); backdrop-filter:blur(4px);
+    display:none; align-items:center; justify-content:center; z-index:300; padding:20px;
+  }
+  .modal-overlay.active{display:flex;}
+  .modal-box{width:100%; max-width:440px; background:var(--panel); border:1px solid var(--line); padding:32px; position:relative;}
+  .modal-close{position:absolute; top:14px; right:16px; background:none; border:none; color:var(--parchment-dim); font-size:18px; cursor:pointer;}
+  .modal-title{font-family:'Cinzel',serif; font-size:22px; margin-bottom:20px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--parchment-dim); margin-bottom:6px;}
+  .field input, .field select, .field textarea{
+    width:100%; background:#0c0f0a; border:1px solid var(--line); color:var(--parchment); padding:10px 12px;
+    font-family:'Spectral',serif; font-size:14px;
+  }
+  .field textarea{resize:vertical; min-height:60px;}
+  .template-options{display:flex; gap:10px;}
+  .template-opt{
+    flex:1; border:1px solid var(--line); padding:14px 10px; text-align:center; cursor:pointer;
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1px;
+  }
+  .template-opt.selected{border-color:var(--gold); color:var(--gold-bright); background:rgba(201,162,39,0.08);}
+  .modal-submit{
+    width:100%; border:1.5px solid var(--gold); background:var(--gold); color:#151109; font-family:'Cinzel',serif;
+    font-size:14px; letter-spacing:2px; text-transform:uppercase; padding:12px; cursor:pointer; font-weight:700; margin-top:8px;
+  }
+  .modal-submit:hover{background:var(--gold-bright);}
+  .modal-error{background:rgba(122,32,32,0.15); border:1px solid var(--crimson); color:#e8b8b8; font-size:12.5px; padding:10px 12px; margin-bottom:14px; display:none;}
+  .modal-error.show{display:block;}
+  .hint{font-size:12px; color:var(--parchment-dim); line-height:1.5; margin-top:4px;}
+
+  @media (max-width:900px){
+    #sidebar{width:220px;}
+    .split{flex-direction:column;}
+    .pane + .pane{border-left:none; border-top:1px solid var(--line);}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <div class="brand-name">TLM GAMES <span class="studio-tag">STUDIO</span></div>
+  </div>
+  <a class="back" href="index.html">← Retour à la boutique</a>
+</header>
+
+<!-- ===================== GATE (not logged in) ===================== -->
+<div id="gate">
+  <div class="box">
+    <div class="eyebrow">Accès réservé</div>
+    <h1>Connecte-toi pour créer</h1>
+    <p>Le Studio te permet d'importer un jeu déjà codé (fichier .zip) ou d'en créer un directement dans le navigateur avec l'éditeur intégré. Il faut un compte TLM Games pour enregistrer et publier tes créations.</p>
+    <a class="cta" href="index.html">Se connecter depuis la boutique</a>
+  </div>
+</div>
+
+<!-- ===================== GATE (logged in but not verified) ===================== -->
+<div id="gate-unverified" style="display:none; flex:1; align-items:center; justify-content:center; text-align:center; padding:40px;">
+  <div class="box">
+    <div class="eyebrow">Vérification requise</div>
+    <h1>Compte pas encore vérifié</h1>
+    <p>Pour créer ou publier des jeux, ton compte doit d'abord être vérifié par l'équipe TLM Games. C'est rapide et sert simplement à limiter les abus.</p>
+    <button class="cta" id="request-verification-btn" style="cursor:pointer;">Demander la vérification</button>
+    <p id="verif-request-msg" style="margin-top:16px; display:none; color:var(--gold-bright);"></p>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app">
+  <aside id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Créer</div>
+      <button class="new-btn" id="btn-new-project">+ Nouveau jeu (éditeur)</button>
+      <button class="import-btn" id="btn-import">⇪ Importer un jeu (.zip)</button>
+    </div>
+    <div class="sidebar-section" style="padding-bottom:0;">
+      <div class="sidebar-label">Mes projets</div>
+    </div>
+    <div id="project-list"></div>
+  </aside>
+
+  <main id="editor-area">
+    <div id="no-project">Sélectionne un projet à gauche, ou crée-en un nouveau pour commencer.</div>
+
+    <div id="project-editor">
+      <div class="editor-topbar">
+        <input type="text" id="ptitle" placeholder="Titre du jeu">
+        <button class="tb-btn" id="btn-preview">▶ Aperçu</button>
+        <button class="tb-btn" id="btn-save">Enregistrer</button>
+        <button class="tb-btn primary" id="btn-submit">Soumettre à la modération</button>
+        <button class="tb-btn" id="btn-withdraw" style="display:none;">Retirer de la boutique</button>
+        <span class="status-pill" id="status-pill"></span>
+        <div class="tb-spacer"></div>
+        <span class="status-msg" id="status-msg"></span>
+        <button class="tb-btn danger" id="btn-delete">Supprimer</button>
+      </div>
+      <div id="rejection-banner" class="rejection-banner" style="display:none;"></div>
+      <div class="meta-row">
+        <input type="text" id="pgenre" placeholder="Genre (ex : Plateforme, Arcade...)">
+        <input type="text" id="pdesc" placeholder="Description courte">
+      </div>
+      <div class="split">
+        <div class="pane">
+          <div class="pane-label">Code — game.js</div>
+          <textarea id="code-textarea"></textarea>
+        </div>
+        <div class="pane">
+          <div class="pane-label">Aperçu en direct</div>
+          <iframe id="preview-frame" sandbox="allow-scripts"></iframe>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ===================== NEW PROJECT MODAL ===================== -->
+<div class="modal-overlay" id="new-modal">
+  <div class="modal-box">
+    <button class="modal-close" id="new-modal-close">✕</button>
+    <div class="modal-title">Nouveau jeu</div>
+    <div class="modal-error" id="new-error"></div>
+    <div class="field">
+      <label>Titre</label>
+      <input type="text" id="new-title" placeholder="Mon super jeu">
+    </div>
+    <div class="field">
+      <label>Point de départ</label>
+      <div class="template-options">
+        <div class="template-opt selected" data-tpl="vide">Vide</div>
+        <div class="template-opt" data-tpl="casse_briques">Casse-briques (exemple)</div>
+      </div>
+      <div class="hint">Le modèle "Casse-briques" est un jeu complet et fonctionnel que tu peux étudier puis modifier — la meilleure façon d'apprendre le moteur TLM.</div>
+    </div>
+    <button class="modal-submit" id="new-create-btn">Créer le projet</button>
+  </div>
+</div>
+
+<!-- ===================== SUBMIT-TO-MODERATION MODAL ===================== -->
+<div class="modal-overlay" id="submit-modal">
+  <div class="modal-box">
+    <button class="modal-close" id="submit-modal-close">✕</button>
+    <div class="modal-title">Soumettre à la modération</div>
+    <div class="modal-error" id="submit-error"></div>
+    <p class="hint" style="margin-bottom:16px;">Ton jeu ne sera visible dans la Boutique qu'après validation par l'équipe.</p>
+    <div class="field">
+      <label>Tranche d'âge</label>
+      <select id="submit-age">
+        <option value="tout_public">Tout public</option>
+        <option value="10+">10 ans et plus</option>
+        <option value="13+">13 ans et plus</option>
+        <option value="16+">16 ans et plus</option>
+        <option value="18+">18 ans et plus</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Note pour l'équipe de modération (optionnel)</label>
+      <textarea id="submit-note" placeholder="Précise si besoin comment jouer, ou tout contexte utile."></textarea>
+    </div>
+    <div class="field" style="display:flex; align-items:flex-start; gap:9px;">
+      <input type="checkbox" id="submit-certify" style="width:auto; margin-top:4px;">
+      <label for="submit-certify" style="text-transform:none; font-family:'Spectral',serif; font-size:13px; letter-spacing:normal; color:var(--parchment-dim); cursor:pointer;">
+        Je certifie que ce contenu m'appartient (ou que je suis autorisé à le publier) et respecte les <a href="cgu.html" target="_blank" style="color:var(--gold-bright);">Conditions d'utilisation</a>.
+      </label>
+    </div>
+    <button class="modal-submit" id="submit-confirm-btn">Envoyer à la modération</button>
+  </div>
+</div>
+
+<!-- ===================== IMPORT ZIP MODAL ===================== -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal-box">
+    <button class="modal-close" id="import-modal-close">✕</button>
+    <div class="modal-title">Importer un jeu</div>
+    <div class="modal-error" id="import-error"></div>
+    <div class="field">
+      <label>Fichier .zip (doit contenir un index.html)</label>
+      <input type="file" id="import-file" accept=".zip">
+      <div class="hint">Taille max 15 Mo. Le jeu sera envoyé à la modération avant d'apparaître dans la boutique.</div>
+    </div>
+    <div class="field">
+      <label>Titre</label>
+      <input type="text" id="import-title">
+    </div>
+    <div class="field">
+      <label>Genre</label>
+      <input type="text" id="import-genre" placeholder="ex : Plateforme">
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="import-desc" placeholder="Description courte du jeu"></textarea>
+    </div>
+    <div class="field">
+      <label>Tranche d'âge</label>
+      <select id="import-age">
+        <option value="tout_public">Tout public</option>
+        <option value="10+">10 ans et plus</option>
+        <option value="13+">13 ans et plus</option>
+        <option value="16+">16 ans et plus</option>
+        <option value="18+">18 ans et plus</option>
+      </select>
+    </div>
+    <div class="field" style="display:flex; align-items:flex-start; gap:9px;">
+      <input type="checkbox" id="import-certify" style="width:auto; margin-top:4px;">
+      <label for="import-certify" style="text-transform:none; font-family:'Spectral',serif; font-size:13px; letter-spacing:normal; color:var(--parchment-dim); cursor:pointer;">
+        Je certifie que ce contenu m'appartient (ou que je suis autorisé à le publier) et respecte les <a href="cgu.html" target="_blank" style="color:var(--gold-bright);">Conditions d'utilisation</a>.
+      </label>
+    </div>
+    <button class="modal-submit" id="import-submit-btn">Importer et soumettre à la modération</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script>
+  const TOKEN_KEY = "tlmgames.token";
+  function getToken(){ return localStorage.getItem(TOKEN_KEY); }
+
+  async function api(path, opts = {}){
+    const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    const token = getToken();
+    if(token) headers["Authorization"] = "Bearer " + token;
+    const res = await fetch("/api" + path, Object.assign({}, opts, { headers }));
+    let data = null;
+    try{ data = await res.json(); }catch(e){}
+    if(!res.ok){
+      const msg = (data && data.error) || `Erreur serveur (code ${res.status}). Regarde le terminal du serveur pour le détail.`;
+      console.error("Erreur API", path, res.status, data);
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  let currentUser = null;
+  let projects = [];
+  let activeProjectId = null;
+  let cm = null; // instance CodeMirror
+
+  const STATUS_LABELS = { draft: "Brouillon", pending: "En attente de validation", approved: "Publié", rejected: "Refusé" };
+
+  // ---------------- BOOTSTRAP ----------------
+  async function boot(){
+    const token = getToken();
+    if(!token){ showGate(); return; }
+    try{
+      const me = await api("/auth/me");
+      currentUser = me.user;
+    }catch(e){
+      showGate();
+      return;
+    }
+    if(!currentUser.verified){
+      showUnverifiedGate();
+      return;
+    }
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("gate-unverified").style.display = "none";
+    document.getElementById("app").classList.add("active");
+    initEditor();
+    await loadProjects();
+  }
+  function showGate(){
+    document.getElementById("gate").style.display = "flex";
+    document.getElementById("gate-unverified").style.display = "none";
+    document.getElementById("app").classList.remove("active");
+  }
+  function showUnverifiedGate(){
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("gate-unverified").style.display = "flex";
+    document.getElementById("app").classList.remove("active");
+  }
+
+  document.getElementById("request-verification-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("request-verification-btn");
+    const msg = document.getElementById("verif-request-msg");
+    btn.disabled = true;
+    try{
+      await api("/support/tickets", {
+        method: "POST",
+        body: JSON.stringify({
+          category: "verification",
+          subject: "Demande de vérification de compte",
+          message: "Je souhaite faire vérifier mon compte pour pouvoir créer et publier des jeux dans TLM Games Studio."
+        })
+      });
+      msg.textContent = "✓ Demande envoyée. Tu peux suivre son état dans le Support.";
+      msg.style.display = "block";
+    }catch(e){
+      msg.textContent = e.message;
+      msg.style.display = "block";
+      btn.disabled = false;
+    }
+  });
+
+  function initEditor(){
+    cm = CodeMirror.fromTextArea(document.getElementById("code-textarea"), {
+      mode: "javascript",
+      theme: "dracula",
+      lineNumbers: true,
+      tabSize: 2,
+      indentUnit: 2,
+      viewportMargin: Infinity
+    });
+  }
+
+  // ---------------- PROJECT LIST ----------------
+  async function loadProjects(){
+    const data = await api("/studio/projects");
+    projects = data.projects;
+    renderProjectList();
+  }
+
+  function renderProjectList(){
+    const list = document.getElementById("project-list");
+    if(projects.length === 0){
+      list.innerHTML = `<div class="empty-projects">Aucun projet pour l'instant. Clique sur « + Nouveau jeu » pour commencer.</div>`;
+      return;
+    }
+    list.innerHTML = "";
+    projects.forEach(p => {
+      const item = document.createElement("div");
+      item.className = "project-item" + (p.id === activeProjectId ? " active" : "");
+      item.innerHTML = `
+        <div class="pname">${escapeHtml(p.title)}</div>
+        <div class="pmeta">
+          <span class="pub-dot ${p.status === 'approved' ? 'on' : ''}"></span>
+          ${STATUS_LABELS[p.status]} · ${p.type === 'upload' ? 'Importé' : 'Éditeur'}
+        </div>`;
+      item.addEventListener("click", () => openProject(p.id));
+      list.appendChild(item);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  // ---------------- OPEN / EDIT PROJECT ----------------
+  async function openProject(id){
+    const data = await api("/studio/projects/" + id);
+    const project = data.project;
+    activeProjectId = id;
+    renderProjectList();
+
+    document.getElementById("no-project").style.display = "none";
+    document.getElementById("project-editor").classList.add("active");
+
+    document.getElementById("ptitle").value = project.title;
+    document.getElementById("pgenre").value = project.genre || "";
+    document.getElementById("pdesc").value = project.desc || "";
+    cm.setValue(project.code || "");
+
+    const pill = document.getElementById("status-pill");
+    pill.textContent = STATUS_LABELS[project.status];
+    pill.className = "status-pill " + project.status;
+
+    document.getElementById("btn-withdraw").style.display = project.status === "approved" ? "inline-block" : "none";
+
+    const banner = document.getElementById("rejection-banner");
+    if(project.status === "rejected" && project.rejectionReason){
+      banner.style.display = "block";
+      banner.textContent = "Refusé par la modération — motif : " + project.rejectionReason;
+    } else {
+      banner.style.display = "none";
+    }
+    setStatus("");
+  }
+
+  function setStatus(msg){
+    document.getElementById("status-msg").textContent = msg;
+    if(msg) setTimeout(() => { if(document.getElementById("status-msg").textContent === msg) document.getElementById("status-msg").textContent = ""; }, 2500);
+  }
+
+  // ---------------- SAVE ----------------
+  document.getElementById("btn-save").addEventListener("click", async () => {
+    if(!activeProjectId) return;
+    try{
+      const body = {
+        title: document.getElementById("ptitle").value,
+        genre: document.getElementById("pgenre").value,
+        desc: document.getElementById("pdesc").value,
+        code: cm.getValue()
+      };
+      const data = await api("/studio/projects/" + activeProjectId, { method: "PUT", body: JSON.stringify(body) });
+      const idx = projects.findIndex(p => p.id === activeProjectId);
+      projects[idx] = data.project;
+      renderProjectList();
+      const pill = document.getElementById("status-pill");
+      pill.textContent = STATUS_LABELS[data.project.status];
+      pill.className = "status-pill " + data.project.status;
+      document.getElementById("btn-withdraw").style.display = data.project.status === "approved" ? "inline-block" : "none";
+      setStatus("✓ Enregistré");
+    }catch(e){ alert(e.message); }
+  });
+
+  // ---------------- PREVIEW ----------------
+  document.getElementById("btn-preview").addEventListener("click", () => {
+    const code = cm.getValue();
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <script src="/tlm-engine.js"><\/script></head>
+      <body><script>${code}<\/script></body></html>`;
+    document.getElementById("preview-frame").srcdoc = html;
+  });
+
+  // ---------------- SUBMIT TO MODERATION ----------------
+  const submitModal = document.getElementById("submit-modal");
+  document.getElementById("btn-submit").addEventListener("click", () => {
+    if(!activeProjectId) return;
+    document.getElementById("submit-error").classList.remove("show");
+    document.getElementById("submit-certify").checked = false;
+    submitModal.classList.add("active");
+  });
+  document.getElementById("submit-modal-close").addEventListener("click", () => submitModal.classList.remove("active"));
+  submitModal.addEventListener("click", e => { if(e.target === submitModal) submitModal.classList.remove("active"); });
+
+  document.getElementById("submit-confirm-btn").addEventListener("click", async () => {
+    const errBox = document.getElementById("submit-error");
+    errBox.classList.remove("show");
+    if(!document.getElementById("submit-certify").checked){
+      errBox.textContent = "Merci de cocher la case de certification.";
+      errBox.classList.add("show");
+      return;
+    }
+    // On enregistre d'abord pour être sûr de soumettre la dernière version du code.
+    document.getElementById("btn-save").click();
+    try{
+      const body = {
+        genre: document.getElementById("pgenre").value,
+        desc: document.getElementById("pdesc").value,
+        ageRating: document.getElementById("submit-age").value,
+        certified: true,
+        moderatorNote: document.getElementById("submit-note").value
+      };
+      const data = await api("/studio/projects/" + activeProjectId + "/submit", { method: "POST", body: JSON.stringify(body) });
+      const idx = projects.findIndex(p => p.id === activeProjectId);
+      projects[idx] = data.project;
+      renderProjectList();
+      submitModal.classList.remove("active");
+      await openProject(activeProjectId);
+      setStatus("✓ Envoyé à la modération");
+    }catch(e){
+      errBox.textContent = e.message;
+      errBox.classList.add("show");
+    }
+  });
+
+  // ---------------- WITHDRAW (retirer un jeu publié) ----------------
+  document.getElementById("btn-withdraw").addEventListener("click", async () => {
+    if(!activeProjectId) return;
+    if(!confirm("Retirer ce jeu de la boutique ? Il repassera en brouillon.")) return;
+    try{
+      const data = await api("/studio/projects/" + activeProjectId + "/withdraw", { method: "POST" });
+      const idx = projects.findIndex(p => p.id === activeProjectId);
+      projects[idx] = data.project;
+      renderProjectList();
+      await openProject(activeProjectId);
+      setStatus("Retiré de la boutique");
+    }catch(e){ alert(e.message); }
+  });
+
+  // ---------------- DELETE ----------------
+  document.getElementById("btn-delete").addEventListener("click", async () => {
+    if(!activeProjectId) return;
+    if(!confirm("Supprimer définitivement ce projet ?")) return;
+    try{
+      await api("/studio/projects/" + activeProjectId, { method: "DELETE" });
+      projects = projects.filter(p => p.id !== activeProjectId);
+      activeProjectId = null;
+      renderProjectList();
+      document.getElementById("project-editor").classList.remove("active");
+      document.getElementById("no-project").style.display = "flex";
+    }catch(e){ alert(e.message); }
+  });
+
+  // ---------------- NEW PROJECT MODAL ----------------
+  const newModal = document.getElementById("new-modal");
+  let selectedTemplate = "vide";
+  document.getElementById("btn-new-project").addEventListener("click", () => {
+    document.getElementById("new-error").classList.remove("show");
+    document.getElementById("new-title").value = "";
+    newModal.classList.add("active");
+  });
+  document.getElementById("new-modal-close").addEventListener("click", () => newModal.classList.remove("active"));
+  newModal.addEventListener("click", e => { if(e.target === newModal) newModal.classList.remove("active"); });
+  document.querySelectorAll(".template-opt").forEach(el => {
+    el.addEventListener("click", () => {
+      document.querySelectorAll(".template-opt").forEach(o => o.classList.remove("selected"));
+      el.classList.add("selected");
+      selectedTemplate = el.dataset.tpl;
+    });
+  });
+  document.getElementById("new-create-btn").addEventListener("click", async () => {
+    const errBox = document.getElementById("new-error");
+    const title = document.getElementById("new-title").value.trim();
+    if(!title){ errBox.textContent = "Le titre est requis."; errBox.classList.add("show"); return; }
+    try{
+      const data = await api("/studio/projects", { method: "POST", body: JSON.stringify({ title, template: selectedTemplate }) });
+      projects.unshift(projectSummaryFromFull(data.project));
+      renderProjectList();
+      newModal.classList.remove("active");
+      await openProject(data.project.id);
+    }catch(e){
+      errBox.textContent = e.message;
+      errBox.classList.add("show");
+    }
+  });
+  function projectSummaryFromFull(p){
+    return { id: p.id, title: p.title, type: p.type, genre: p.genre, desc: p.desc, status: p.status, updatedAt: p.updatedAt };
+  }
+
+  // ---------------- IMPORT ZIP MODAL ----------------
+  const importModal = document.getElementById("import-modal");
+  document.getElementById("btn-import").addEventListener("click", () => {
+    document.getElementById("import-error").classList.remove("show");
+    document.getElementById("import-certify").checked = false;
+    importModal.classList.add("active");
+  });
+  document.getElementById("import-modal-close").addEventListener("click", () => importModal.classList.remove("active"));
+  importModal.addEventListener("click", e => { if(e.target === importModal) importModal.classList.remove("active"); });
+
+  document.getElementById("import-submit-btn").addEventListener("click", async () => {
+    const errBox = document.getElementById("import-error");
+    errBox.classList.remove("show");
+    const fileInput = document.getElementById("import-file");
+    const title = document.getElementById("import-title").value.trim();
+    if(!fileInput.files[0]){ errBox.textContent = "Choisis un fichier .zip."; errBox.classList.add("show"); return; }
+    if(!title){ errBox.textContent = "Le titre est requis."; errBox.classList.add("show"); return; }
+    if(!document.getElementById("import-certify").checked){
+      errBox.textContent = "Merci de cocher la case de certification.";
+      errBox.classList.add("show");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("zipfile", fileInput.files[0]);
+    formData.append("title", title);
+    formData.append("genre", document.getElementById("import-genre").value.trim());
+    formData.append("desc", document.getElementById("import-desc").value.trim());
+    formData.append("ageRating", document.getElementById("import-age").value);
+    formData.append("certified", "true");
+
+    try{
+      const token = getToken();
+      const res = await fetch("/api/studio/upload", {
+        method: "POST",
+        headers: token ? { "Authorization": "Bearer " + token } : {},
+        body: formData
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || "Échec de l'import.");
+      projects.unshift(projectSummaryFromFull(data.project));
+      renderProjectList();
+      importModal.classList.remove("active");
+      fileInput.value = "";
+      document.getElementById("import-title").value = "";
+      document.getElementById("import-genre").value = "";
+      document.getElementById("import-desc").value = "";
+      alert("Jeu importé et envoyé à la modération. Il apparaîtra dans la boutique une fois validé.");
+    }catch(e){
+      errBox.textContent = e.message;
+      errBox.classList.add("show");
+    }
+  });
+
+  boot();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TLM Games — Bibliothèque de jeux</title>
+<link rel="icon" href="games/royaumes-colonies/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d0a;
+    --panel:#11150f;
+    --panel-2:#161b13;
+    --line:#2b3226;
+    --gold:#c9a227;
+    --gold-bright:#e8c96a;
+    --parchment:#e9e0c6;
+    --parchment-dim:#a8a48c;
+    --crimson:#7a2020;
+    --crimson-bright:#9c2b2b;
+    --green-dim:#5b6b57;
+    --shadow: 0 20px 60px rgba(0,0,0,0.55);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;background:var(--bg);color:var(--parchment);font-family:'Spectral',serif;}
+  body{
+    background:
+      radial-gradient(ellipse 1200px 700px at 50% -10%, rgba(120,100,40,0.10), transparent 60%),
+      radial-gradient(ellipse 900px 600px at 100% 100%, rgba(90,20,20,0.10), transparent 60%),
+      var(--bg);
+    min-height:100%;
+  }
+  ::selection{background:var(--gold);color:#151109;}
+
+  a{color:inherit;}
+
+  /* ---------------- HEADER ---------------- */
+  header{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 40px;
+    background:rgba(10,13,10,0.88);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{
+    width:34px;height:34px;
+    background:linear-gradient(160deg,var(--gold-bright),var(--gold) 60%,#8a6c14);
+    clip-path:polygon(50% 0%, 100% 22%, 100% 62%, 50% 100%, 0% 62%, 0% 22%);
+    box-shadow:inset 0 0 0 2px rgba(0,0,0,0.35);
+  }
+  .brand-name{
+    font-family:'Cinzel',serif; font-weight:700; letter-spacing:4px;
+    font-size:20px; color:var(--parchment);
+  }
+  nav{display:flex; gap:6px; background:var(--panel); border:1px solid var(--line); padding:4px; border-radius:2px;}
+  .nav-btn{
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--parchment-dim);
+    background:transparent; border:none; padding:10px 20px; cursor:pointer;
+    transition:all .18s;
+  }
+  .nav-btn:hover{color:var(--parchment);}
+  .nav-btn.active{background:var(--gold); color:#151109; font-weight:600;}
+
+  /* ---------------- LAYOUT ---------------- */
+  main{max-width:1180px; margin:0 auto; padding:56px 40px 120px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:4px;
+    color:var(--gold); text-transform:uppercase; margin-bottom:14px;
+  }
+  h1.page-title{
+    font-family:'Cinzel',serif; font-weight:700; font-size:40px; letter-spacing:2px;
+    color:var(--parchment); margin-bottom:8px;
+  }
+  .page-sub{color:var(--parchment-dim); font-size:16px; max-width:560px; line-height:1.6; margin-bottom:48px;}
+
+  /* ---------------- HERO (store) ---------------- */
+  .hero{
+    position:relative; display:grid; grid-template-columns:1.1fr 0.9fr; gap:0;
+    border:1px solid var(--line); background:var(--panel);
+    margin-bottom:56px; overflow:hidden;
+    box-shadow:var(--shadow);
+  }
+  .hero-art{
+    position:relative; background:
+      radial-gradient(circle at 30% 20%, rgba(201,162,39,0.18), transparent 55%),
+      linear-gradient(160deg,#182116,#0b0f0a 70%);
+    display:flex; align-items:center; justify-content:center; padding:40px;
+    border-right:1px solid var(--line);
+  }
+  .hero-shield{
+    width:180px;height:180px;
+    background:linear-gradient(160deg,var(--gold-bright),var(--gold) 55%,#7d611a);
+    clip-path:polygon(50% 0%, 100% 22%, 100% 62%, 50% 100%, 0% 62%, 0% 22%);
+    box-shadow:0 30px 60px rgba(0,0,0,0.5), inset 0 0 0 3px rgba(0,0,0,0.3);
+    position:relative;
+  }
+  .hero-shield::after{
+    content:"";position:absolute; inset:14px;
+    background:linear-gradient(160deg,#0b0f0a,#182116);
+    clip-path:polygon(50% 0%, 100% 22%, 100% 62%, 50% 100%, 0% 62%, 0% 22%);
+  }
+  .hero-body{padding:44px 44px;}
+  .hero-tag{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:3px; color:var(--gold); text-transform:uppercase; margin-bottom:16px;}
+  .hero-title{font-family:'Cinzel',serif; font-size:34px; font-weight:700; letter-spacing:1px; margin-bottom:16px; line-height:1.2;}
+  .hero-desc{color:var(--parchment-dim); line-height:1.75; margin-bottom:30px; font-size:15px;}
+  .hero-meta{display:flex; gap:28px; margin-bottom:32px;}
+  .hero-meta div{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--parchment-dim); letter-spacing:1px;}
+  .hero-meta strong{display:block; color:var(--parchment); font-family:'Spectral',serif; font-size:15px; margin-top:4px; font-weight:600;}
+
+  /* ---------------- SEAL BUTTON (signature element) ---------------- */
+  .seal-btn{
+    position:relative; display:inline-flex; align-items:center; gap:14px;
+    background:transparent; border:1.5px solid var(--gold); color:var(--gold-bright);
+    font-family:'Cinzel',serif; font-size:14px; letter-spacing:2px; text-transform:uppercase;
+    padding:14px 28px 14px 20px; cursor:pointer; transition:all .25s;
+  }
+  .seal-btn:hover{background:rgba(201,162,39,0.08); box-shadow:0 0 24px rgba(201,162,39,0.18);}
+  .seal-btn .seal-icon{
+    width:22px;height:22px; border-radius:50%; border:1.5px solid var(--gold-bright);
+    display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0;
+  }
+  .seal-btn.installed{
+    border-color:var(--crimson-bright); color:var(--parchment);
+    background:rgba(122,32,32,0.12);
+  }
+  .seal-btn.installed .seal-icon{
+    border-color:var(--crimson-bright); background:var(--crimson-bright); color:#1a0808;
+  }
+  .seal-btn.play{
+    border-color:var(--gold-bright); background:var(--gold); color:#151109; font-weight:700;
+  }
+  .seal-btn.play:hover{background:var(--gold-bright); box-shadow:0 0 28px rgba(232,201,106,0.35);}
+  .seal-btn.play .seal-icon{border-color:#151109; background:#151109; color:var(--gold-bright);}
+  .seal-btn.ghost{opacity:0.35; pointer-events:none; border-color:var(--green-dim); color:var(--parchment-dim);}
+
+  /* ---------------- GAME GRID ---------------- */
+  .section-label{
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:3px; color:var(--parchment-dim);
+    text-transform:uppercase; margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--line);
+  }
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:22px;}
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); overflow:hidden;
+    display:flex; flex-direction:column; transition:border-color .2s, transform .2s;
+  }
+  .card:hover{border-color:var(--gold); transform:translateY(-3px);}
+  .card-art{
+    height:150px; position:relative; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(150deg,#1a2416,#0c0f0a 75%);
+    border-bottom:1px solid var(--line);
+  }
+  .card-art .mini-shield{
+    width:64px;height:64px;
+    background:linear-gradient(160deg,var(--gold-bright),var(--gold) 55%,#7d611a);
+    clip-path:polygon(50% 0%, 100% 22%, 100% 62%, 50% 100%, 0% 62%, 0% 22%);
+    box-shadow:0 12px 24px rgba(0,0,0,0.45);
+  }
+  .card-art.locked .mini-shield{filter:grayscale(1) brightness(0.5);}
+  .card-body{padding:18px 18px 20px; display:flex; flex-direction:column; gap:10px; flex:1;}
+  .card-title{font-family:'Cinzel',serif; font-size:16px; letter-spacing:1px; color:var(--parchment);}
+  .card-genre{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1.5px; color:var(--gold); text-transform:uppercase;}
+  .card-desc{font-size:13px; color:var(--parchment-dim); line-height:1.5; flex:1;}
+  .card-btn{
+    margin-top:8px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1.5px;
+    text-transform:uppercase; padding:10px; text-align:center; border:1px solid var(--line);
+    background:transparent; color:var(--parchment-dim); cursor:pointer; transition:all .18s;
+  }
+  .card-btn:hover{border-color:var(--gold); color:var(--gold-bright);}
+  .card-btn.installed{border-color:var(--crimson-bright); color:var(--parchment);}
+  .card-btn.locked{pointer-events:none; opacity:0.4;}
+  .report-link{
+    display:block; text-align:center; margin-top:6px; font-family:'JetBrains Mono',monospace; font-size:10px;
+    letter-spacing:1px; text-transform:uppercase; color:var(--parchment-dim); cursor:pointer; text-decoration:underline;
+  }
+  .report-link:hover{color:#e8b8b8;}
+
+  /* ---------------- LIBRARY EMPTY ---------------- */
+  .empty-state{
+    border:1px dashed var(--line); padding:70px 30px; text-align:center; color:var(--parchment-dim);
+  }
+  .empty-state .mini-shield{
+    width:56px;height:56px; margin:0 auto 20px;
+    background:linear-gradient(160deg,#3a4536,#20261c);
+    clip-path:polygon(50% 0%, 100% 22%, 100% 62%, 50% 100%, 0% 62%, 0% 22%);
+  }
+  .empty-state p{max-width:340px; margin:0 auto 22px; line-height:1.6; font-size:14px;}
+
+  /* ---------------- FULLSCREEN PLAYER ---------------- */
+  #player{
+    position:fixed; inset:0; background:#000; z-index:200;
+    display:none; flex-direction:column;
+  }
+  #player.active{display:flex;}
+  #player-bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 18px; background:#0a0d0a; border-bottom:1px solid var(--line);
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:1.5px; color:var(--parchment-dim);
+  }
+  #player-bar .title{color:var(--gold-bright); text-transform:uppercase; letter-spacing:2px;}
+  #player-bar button{
+    background:transparent; border:1px solid var(--line); color:var(--parchment-dim);
+    padding:8px 16px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; transition:all .18s;
+  }
+  #player-bar button:hover{border-color:var(--gold); color:var(--gold-bright);}
+  #player iframe{flex:1; border:none; width:100%; background:#0a0e14;}
+
+  footer{
+    text-align:center; padding:30px; color:var(--green-dim);
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase;
+    border-top:1px solid var(--line);
+  }
+
+  /* ---------------- ACCOUNT ---------------- */
+  .account-zone{display:flex; align-items:center; gap:10px;}
+  .account-btn{
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:1.5px; text-transform:uppercase;
+    background:transparent; border:1px solid var(--gold); color:var(--gold-bright);
+    padding:10px 18px; cursor:pointer; transition:all .18s;
+  }
+  .account-btn:hover{background:rgba(201,162,39,0.1);}
+  .user-chip{
+    display:flex; align-items:center; gap:10px; border:1px solid var(--line);
+    padding:6px 8px 6px 14px; background:var(--panel); position:relative;
+  }
+  .user-chip .avatar{
+    width:26px;height:26px; border-radius:50%;
+    background:linear-gradient(160deg,var(--gold-bright),var(--gold) 60%,#8a6c14);
+    display:flex; align-items:center; justify-content:center; font-family:'Cinzel',serif; font-weight:700;
+    font-size:12px; color:#151109;
+  }
+  .user-chip .uname{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--parchment); letter-spacing:0.5px;}
+  .user-chip .logout-btn{
+    background:transparent; border:none; color:var(--parchment-dim); cursor:pointer; font-size:15px;
+    padding:2px 6px; transition:color .15s;
+  }
+  .user-chip .logout-btn:hover{color:var(--crimson-bright);}
+  .sync-pill{
+    font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--green-dim); display:flex; align-items:center; gap:5px;
+  }
+  .sync-pill .dot{width:6px;height:6px;border-radius:50%; background:var(--green-dim);}
+  .sync-pill.on{color:var(--gold);} .sync-pill.on .dot{background:var(--gold); box-shadow:0 0 6px var(--gold);}
+
+  /* ---------------- MODAL ---------------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(4,5,3,0.75); backdrop-filter:blur(4px);
+    display:none; align-items:center; justify-content:center; z-index:300; padding:20px;
+  }
+  .modal-overlay.active{display:flex;}
+  .modal-box{
+    width:100%; max-width:400px; background:var(--panel); border:1px solid var(--line);
+    box-shadow:var(--shadow); padding:36px 34px 30px; position:relative;
+  }
+  .modal-close{
+    position:absolute; top:14px; right:16px; background:transparent; border:none;
+    color:var(--parchment-dim); font-size:18px; cursor:pointer;
+  }
+  .modal-close:hover{color:var(--parchment);}
+  .modal-tag{font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:3px; color:var(--gold); text-transform:uppercase; margin-bottom:10px;}
+  .modal-title{font-family:'Cinzel',serif; font-size:24px; font-weight:700; letter-spacing:1px; margin-bottom:22px;}
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1.5px;
+    text-transform:uppercase; color:var(--parchment-dim); margin-bottom:7px;
+  }
+  .field input{
+    width:100%; background:#0c0f0a; border:1px solid var(--line); color:var(--parchment);
+    padding:11px 12px; font-family:'Spectral',serif; font-size:14px; transition:border-color .15s;
+  }
+  .field input:focus{outline:none; border-color:var(--gold);}
+  .modal-error{
+    background:rgba(122,32,32,0.15); border:1px solid var(--crimson); color:#e8b8b8;
+    font-size:12.5px; padding:10px 12px; margin-bottom:16px; display:none; line-height:1.5;
+  }
+  .modal-error.show{display:block;}
+  .modal-submit{
+    width:100%; border:1.5px solid var(--gold); background:var(--gold); color:#151109;
+    font-family:'Cinzel',serif; font-size:14px; letter-spacing:2px; text-transform:uppercase;
+    padding:13px; cursor:pointer; font-weight:700; transition:all .2s; margin-top:6px;
+  }
+  .modal-submit:hover{background:var(--gold-bright);}
+  .modal-submit:disabled{opacity:0.5; cursor:default;}
+  .modal-switch{
+    text-align:center; margin-top:20px; font-size:13px; color:var(--parchment-dim);
+  }
+  .modal-switch button{
+    background:none; border:none; color:var(--gold-bright); cursor:pointer; font-size:13px;
+    text-decoration:underline; padding:0;
+  }
+
+  @media (max-width:820px){
+    header{padding:14px 20px;}
+    main{padding:36px 20px 90px;}
+    .hero{grid-template-columns:1fr;}
+    .hero-art{padding:30px; border-right:none; border-bottom:1px solid var(--line);}
+    .hero-title{font-size:26px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <div class="brand-name">TLM GAMES</div>
+  </div>
+  <nav>
+    <button class="nav-btn active" data-view="store">Boutique</button>
+    <button class="nav-btn" data-view="library">Bibliothèque</button>
+    <a class="nav-btn" href="studio.html" style="text-decoration:none; display:inline-flex; align-items:center;">Studio</a>
+    <a class="nav-btn" href="support.html" style="text-decoration:none; display:inline-flex; align-items:center;">Support</a>
+    <a class="nav-btn" href="admin.html" id="admin-nav-link" style="display:none; text-decoration:none; align-items:center;">Admin</a>
+  </nav>
+  <div id="account-zone" class="account-zone"></div>
+</header>
+
+<main>
+
+  <!-- ===================== STORE ===================== -->
+  <section id="view-store" class="view active">
+    <div class="eyebrow">Royaume disponible</div>
+    <h1 class="page-title">Choisissez votre couronne</h1>
+    <p class="page-sub">Ajoutez un jeu à votre bibliothèque en un clic. Il s'installe localement dans votre navigateur et se lance ensuite sans jamais quitter cette page.</p>
+
+    <div class="hero">
+      <div class="hero-art"><div class="hero-shield"></div></div>
+      <div class="hero-body">
+        <div class="hero-tag">Gestion &amp; Stratégie</div>
+        <div class="hero-title">Royaumes &amp; Colonies</div>
+        <p class="hero-desc">Bâtis ta colonie, choisis ta race, récolte les ressources de la terre et règne sur ton royaume. Un jeu de gestion complet, jouable entièrement hors-ligne une fois installé.</p>
+        <div class="hero-meta">
+          <div>Genre<strong>Colonie / 4X</strong></div>
+          <div>Joueurs<strong>Solo</strong></div>
+          <div>Taille<strong>~65 Ko</strong></div>
+        </div>
+        <button class="seal-btn" data-game="royaumes-colonies" data-action="toggle-install">
+          <span class="seal-icon">✦</span><span class="seal-label">Ajouter à la bibliothèque</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="section-label">Tous les jeux</div>
+    <div class="grid" id="store-grid"></div>
+  </section>
+
+  <!-- ===================== LIBRARY ===================== -->
+  <section id="view-library" class="view">
+    <div class="eyebrow">Votre coffre</div>
+    <h1 class="page-title">Bibliothèque</h1>
+    <p class="page-sub">Les jeux installés apparaissent ici. Cliquez sur « Jouer » pour les lancer en plein écran, comme sur une plateforme de jeu classique.</p>
+    <div id="library-content"></div>
+  </section>
+
+</main>
+
+<footer>TLM Games — bibliothèque de jeux</footer>
+
+<!-- ===================== AUTH MODAL ===================== -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal-box">
+    <button class="modal-close" id="auth-modal-close">✕</button>
+
+    <div id="auth-view-login">
+      <div class="modal-tag">Bon retour</div>
+      <div class="modal-title">Connexion</div>
+      <div class="modal-error" id="login-error"></div>
+      <form id="login-form">
+        <div class="field">
+          <label>Pseudo ou e-mail</label>
+          <input type="text" id="login-identifier" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label>Mot de passe</label>
+          <input type="password" id="login-password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="modal-submit">Se connecter</button>
+      </form>
+      <div class="modal-switch">Pas encore de compte ? <button id="go-to-register">Créer un compte</button></div>
+    </div>
+
+    <div id="auth-view-register" style="display:none;">
+      <div class="modal-tag">Rejoindre le royaume</div>
+      <div class="modal-title">Créer un compte</div>
+      <div class="modal-error" id="register-error"></div>
+      <form id="register-form">
+        <div class="field">
+          <label>Pseudo</label>
+          <input type="text" id="register-username" autocomplete="username" minlength="3" maxlength="20" required>
+        </div>
+        <div class="field">
+          <label>E-mail</label>
+          <input type="email" id="register-email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label>Mot de passe (6 caractères min.)</label>
+          <input type="password" id="register-password" autocomplete="new-password" minlength="6" required>
+        </div>
+        <div class="field" style="display:flex; align-items:flex-start; gap:9px;">
+          <input type="checkbox" id="register-tos" required style="width:auto; margin-top:4px;">
+          <label for="register-tos" style="text-transform:none; font-family:'Spectral',serif; font-size:13px; letter-spacing:normal; color:var(--parchment-dim); cursor:pointer;">
+            J'ai lu et j'accepte les <a href="cgu.html" target="_blank" style="color:var(--gold-bright);">Conditions d'utilisation</a>.
+          </label>
+        </div>
+        <button type="submit" class="modal-submit">Créer mon compte</button>
+      </form>
+      <div class="modal-switch">Déjà inscrit ? <button id="go-to-login">Se connecter</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== REPORT MODAL ===================== -->
+<div class="modal-overlay" id="report-modal">
+  <div class="modal-box">
+    <button class="modal-close" id="report-modal-close">✕</button>
+    <div class="modal-tag">Signalement</div>
+    <div class="modal-title" id="report-modal-title">Signaler ce jeu</div>
+    <div class="modal-error" id="report-error"></div>
+    <div class="field">
+      <label>Motif</label>
+      <textarea id="report-reason" rows="4" style="width:100%; background:#0c0f0a; border:1px solid var(--line); color:var(--parchment); padding:10px 12px; font-family:'Spectral',serif; font-size:14px;" placeholder="Décris le problème rencontré avec ce jeu..."></textarea>
+    </div>
+    <button class="modal-submit" id="report-submit-btn">Envoyer le signalement</button>
+  </div>
+</div>
+
+<!-- ===================== FULLSCREEN PLAYER ===================== -->
+<div id="player">
+  <div id="player-bar">
+    <span class="title" id="player-title">Jeu</span>
+    <button id="player-close">✕ Quitter</button>
+  </div>
+  <iframe id="player-frame" src="about:blank" allow="fullscreen; gamepad"></iframe>
+</div>
+
+<script>
+  // ------------------------------------------------------------------
+  // GAME CATALOG — jeux officiels (ajoutés à la main) + jeux publiés
+  // depuis TLM Games Studio (récupérés automatiquement depuis le serveur).
+  // ------------------------------------------------------------------
+  const OFFICIAL_CATALOG = [
+    {
+      id: "royaumes-colonies",
+      title: "Royaumes & Colonies",
+      genre: "Colonie / 4X",
+      desc: "Bâtis, récolte, règne sur ton royaume.",
+      path: "games/royaumes-colonies/index.html",
+      locked: false,
+      community: false
+    }
+  ];
+  let CATALOG = OFFICIAL_CATALOG.slice();
+
+  async function loadCommunityCatalog(){
+    try{
+      const res = await fetch("/api/catalog");
+      const data = await res.json();
+      const community = (data.games || []).map(g => ({
+        id: g.id,
+        title: g.title,
+        genre: g.genre,
+        desc: g.desc + (g.ownerUsername ? " — par " + g.ownerUsername : ""),
+        path: g.path,
+        locked: false,
+        community: true
+      }));
+      CATALOG = OFFICIAL_CATALOG.concat(community);
+    }catch(e){
+      CATALOG = OFFICIAL_CATALOG.slice();
+    }
+  }
+
+  const GUEST_KEY = "tlmgames.library.guest"; // bibliothèque locale tant qu'on n'est pas connecté
+  const TOKEN_KEY = "tlmgames.token";
+
+  // ---------------- STATE ----------------
+  let currentUser = null;     // { id, username, email } ou null si invité
+  let libraryIds = [];        // liste d'ids de jeux installés (source de vérité affichée)
+
+  // ---------------- GUEST (localStorage) LIBRARY ----------------
+  function getGuestLibrary(){
+    try{ return JSON.parse(localStorage.getItem(GUEST_KEY)) || []; }
+    catch(e){ return []; }
+  }
+  function setGuestLibrary(arr){
+    localStorage.setItem(GUEST_KEY, JSON.stringify(arr));
+  }
+
+  // ---------------- API HELPERS ----------------
+  function getToken(){ return localStorage.getItem(TOKEN_KEY); }
+  function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
+  function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
+
+  async function api(path, opts = {}){
+    const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    const token = getToken();
+    if(token) headers["Authorization"] = "Bearer " + token;
+    const res = await fetch("/api" + path, Object.assign({}, opts, { headers }));
+    let data = null;
+    try{ data = await res.json(); }catch(e){ /* pas de corps JSON */ }
+    if(!res.ok){
+      const msg = (data && data.error) || `Erreur serveur (code ${res.status}). Regarde le terminal du serveur pour le détail.`;
+      console.error("Erreur API", path, res.status, data);
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  // ---------------- SESSION BOOTSTRAP ----------------
+  async function restoreSession(){
+    await loadCommunityCatalog();
+    const token = getToken();
+    if(!token){ enterGuestMode(); renderAll(); return; }
+    try{
+      const data = await api("/auth/me");
+      currentUser = data.user;
+      await refreshLibraryFromServer();
+    }catch(e){
+      clearToken();
+      enterGuestMode();
+    }
+    renderAll();
+  }
+
+  function enterGuestMode(){
+    currentUser = null;
+    libraryIds = getGuestLibrary();
+  }
+
+  async function refreshLibraryFromServer(){
+    const data = await api("/library");
+    libraryIds = data.games;
+  }
+
+  // ---------------- INSTALL / UNINSTALL (works logged-in or as guest) ----------------
+  function isInstalled(id){
+    return libraryIds.includes(id);
+  }
+
+  async function toggleInstall(id){
+    if(currentUser){
+      try{
+        if(isInstalled(id)){
+          const data = await api("/library/" + encodeURIComponent(id), { method: "DELETE" });
+          libraryIds = data.games;
+        } else {
+          const data = await api("/library", { method: "POST", body: JSON.stringify({ gameId: id }) });
+          libraryIds = data.games;
+        }
+      }catch(e){
+        alert(e.message);
+        return;
+      }
+    } else {
+      let lib = getGuestLibrary();
+      if(lib.includes(id)) lib = lib.filter(g => g !== id);
+      else lib.push(id);
+      setGuestLibrary(lib);
+      libraryIds = lib;
+    }
+    renderAll();
+  }
+
+  // ---------------- ACCOUNT ZONE (header) ----------------
+  function renderAccountZone(){
+    const adminLink = document.getElementById("admin-nav-link");
+    adminLink.style.display = (currentUser && ["admin","moderator"].includes(currentUser.role)) ? "inline-flex" : "none";
+    const zone = document.getElementById("account-zone");
+    if(currentUser){
+      const initial = currentUser.username.charAt(0).toUpperCase();
+      zone.innerHTML = `
+        <div class="sync-pill on"><span class="dot"></span>Synchronisé</div>
+        <div class="user-chip">
+          <div class="avatar">${initial}</div>
+          <div class="uname">${currentUser.username}</div>
+          <button class="logout-btn" id="logout-btn" title="Se déconnecter">⏻</button>
+        </div>`;
+      document.getElementById("logout-btn").addEventListener("click", logout);
+    } else {
+      zone.innerHTML = `
+        <div class="sync-pill"><span class="dot"></span>Invité (non synchronisé)</div>
+        <button class="account-btn" id="open-auth-btn">Se connecter</button>`;
+      document.getElementById("open-auth-btn").addEventListener("click", () => openAuthModal("login"));
+    }
+  }
+
+  function logout(){
+    clearToken();
+    enterGuestMode();
+    renderAll();
+  }
+
+  // ---------------- REPORT MODAL ----------------
+  const reportModal = document.getElementById("report-modal");
+  let reportTargetId = null;
+  function openReportModal(catalogId, title){
+    if(!currentUser){
+      openAuthModal("login");
+      return;
+    }
+    reportTargetId = catalogId;
+    document.getElementById("report-modal-title").textContent = "Signaler « " + title + " »";
+    document.getElementById("report-error").classList.remove("show");
+    document.getElementById("report-reason").value = "";
+    reportModal.classList.add("active");
+  }
+  document.getElementById("report-modal-close").addEventListener("click", () => reportModal.classList.remove("active"));
+  reportModal.addEventListener("click", e => { if(e.target === reportModal) reportModal.classList.remove("active"); });
+  document.getElementById("report-submit-btn").addEventListener("click", async () => {
+    const errBox = document.getElementById("report-error");
+    const reason = document.getElementById("report-reason").value.trim();
+    if(!reason){ errBox.textContent = "Merci de préciser le motif."; errBox.classList.add("show"); return; }
+    try{
+      await api("/reports", { method: "POST", body: JSON.stringify({ catalogId: reportTargetId, reason }) });
+      reportModal.classList.remove("active");
+      alert("Signalement envoyé, merci — l'équipe va l'examiner.");
+    }catch(e){
+      errBox.textContent = e.message;
+      errBox.classList.add("show");
+    }
+  });
+
+  // ---------------- AUTH MODAL ----------------
+  const authModal = document.getElementById("auth-modal");
+  function openAuthModal(view){
+    document.getElementById("login-error").classList.remove("show");
+    document.getElementById("register-error").classList.remove("show");
+    document.getElementById("auth-view-login").style.display = view === "login" ? "block" : "none";
+    document.getElementById("auth-view-register").style.display = view === "register" ? "block" : "none";
+    authModal.classList.add("active");
+  }
+  function closeAuthModal(){ authModal.classList.remove("active"); }
+
+  document.getElementById("auth-modal-close").addEventListener("click", closeAuthModal);
+  authModal.addEventListener("click", (e) => { if(e.target === authModal) closeAuthModal(); });
+  document.getElementById("go-to-register").addEventListener("click", () => openAuthModal("register"));
+  document.getElementById("go-to-login").addEventListener("click", () => openAuthModal("login"));
+
+  // Après connexion/inscription : on fusionne la bibliothèque "invité" dans le compte,
+  // pour ne rien perdre de ce qui avait été ajouté avant de se connecter.
+  async function afterAuthSuccess(data){
+    setToken(data.token);
+    currentUser = data.user;
+    const guestLib = getGuestLibrary();
+    if(guestLib.length > 0){
+      const merged = await api("/library/merge", { method: "POST", body: JSON.stringify({ gameIds: guestLib }) });
+      libraryIds = merged.games;
+      setGuestLibrary([]); // la bibliothèque invitée est maintenant dans le compte
+    } else {
+      await refreshLibraryFromServer();
+    }
+    closeAuthModal();
+    renderAll();
+  }
+
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errBox = document.getElementById("login-error");
+    errBox.classList.remove("show");
+    const identifier = document.getElementById("login-identifier").value.trim();
+    const password = document.getElementById("login-password").value;
+    try{
+      const data = await api("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
+      await afterAuthSuccess(data);
+      e.target.reset();
+    }catch(err){
+      errBox.textContent = err.message;
+      errBox.classList.add("show");
+    }
+  });
+
+  document.getElementById("register-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errBox = document.getElementById("register-error");
+    errBox.classList.remove("show");
+    const username = document.getElementById("register-username").value.trim();
+    const email = document.getElementById("register-email").value.trim();
+    const password = document.getElementById("register-password").value;
+    const tosAccepted = document.getElementById("register-tos").checked;
+    if(!tosAccepted){
+      errBox.textContent = "Tu dois accepter les Conditions d'utilisation.";
+      errBox.classList.add("show");
+      return;
+    }
+    try{
+      const data = await api("/auth/register", { method: "POST", body: JSON.stringify({ username, email, password, tosAccepted }) });
+      await afterAuthSuccess(data);
+      e.target.reset();
+    }catch(err){
+      errBox.textContent = err.message;
+      errBox.classList.add("show");
+    }
+  });
+
+  // ---------------- STORE GRID ----------------
+  function renderStoreGrid(){
+    const grid = document.getElementById("store-grid");
+    grid.innerHTML = "";
+    CATALOG.forEach(game => {
+      const installed = !game.locked && isInstalled(game.id);
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-art ${game.locked ? 'locked' : ''}"><div class="mini-shield"></div></div>
+        <div class="card-body">
+          <div class="card-genre">${game.genre}${game.community ? ' · <span style="color:var(--parchment-dim)">Communauté</span>' : ''}</div>
+          <div class="card-title">${game.title}</div>
+          <div class="card-desc">${game.desc}</div>
+          <button class="card-btn ${installed ? 'installed' : ''} ${game.locked ? 'locked' : ''}" data-id="${game.id}">
+            ${game.locked ? 'Verrouillé' : (installed ? '✓ Installé — retirer' : '+ Ajouter à la bibliothèque')}
+          </button>
+          ${game.community ? `<span class="report-link" data-id="${game.id}" data-title="${escapeHtmlAttr(game.title)}">Signaler ce jeu</span>` : ''}
+        </div>`;
+      if(!game.locked){
+        card.querySelector(".card-btn").addEventListener("click", () => toggleInstall(game.id));
+      }
+      const reportLink = card.querySelector(".report-link");
+      if(reportLink) reportLink.addEventListener("click", () => openReportModal(game.id, game.title));
+      grid.appendChild(card);
+    });
+  }
+
+  function escapeHtmlAttr(s){
+    return String(s).replace(/"/g, "&quot;");
+  }
+
+  // ---------------- HERO SEAL BUTTON ----------------
+  function renderHero(){
+    const btn = document.querySelector('.seal-btn[data-action="toggle-install"]');
+    const id = btn.dataset.game;
+    const label = btn.querySelector(".seal-label");
+    const icon = btn.querySelector(".seal-icon");
+    if(isInstalled(id)){
+      btn.classList.add("installed");
+      icon.textContent = "✓";
+      label.textContent = "Installé — retirer de la bibliothèque";
+    } else {
+      btn.classList.remove("installed");
+      icon.textContent = "✦";
+      label.textContent = "Ajouter à la bibliothèque";
+    }
+    btn.onclick = () => toggleInstall(id);
+  }
+
+  // ---------------- LIBRARY VIEW ----------------
+  function renderLibrary(){
+    const container = document.getElementById("library-content");
+    const games = CATALOG.filter(g => libraryIds.includes(g.id) && !g.locked);
+
+    if(games.length === 0){
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="mini-shield"></div>
+          <p>Votre bibliothèque est vide. Rendez-vous dans la Boutique pour ajouter votre premier royaume.</p>
+          <button class="seal-btn" id="go-to-store"><span class="seal-icon">→</span><span>Aller à la boutique</span></button>
+        </div>`;
+      container.querySelector("#go-to-store").addEventListener("click", () => switchView("store"));
+      return;
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    games.forEach(game => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-art"><div class="mini-shield"></div></div>
+        <div class="card-body">
+          <div class="card-genre">${game.genre}${game.community ? ' · <span style="color:var(--parchment-dim)">Communauté</span>' : ''}</div>
+          <div class="card-title">${game.title}</div>
+          <div class="card-desc">${game.desc}</div>
+          <button class="card-btn installed" data-id="${game.id}">▶ Jouer</button>
+          ${game.community ? `<span class="report-link" data-id="${game.id}" data-title="${escapeHtmlAttr(game.title)}">Signaler ce jeu</span>` : ''}
+        </div>`;
+      card.querySelector(".card-btn").addEventListener("click", () => launchGame(game));
+      const reportLink = card.querySelector(".report-link");
+      if(reportLink) reportLink.addEventListener("click", () => openReportModal(game.id, game.title));
+      grid.appendChild(card);
+    });
+    container.innerHTML = "";
+    container.appendChild(grid);
+  }
+
+  // ---------------- LAUNCH / PLAYER ----------------
+  function launchGame(game){
+    const frame = document.getElementById("player-frame");
+    document.getElementById("player-title").textContent = game.title;
+    // Les jeux communautaires/importés sont isolés plus strictement (pas
+    // d'accès au stockage du site) car leur code n'est pas vérifié par nous.
+    // Le jeu officiel garde allow-same-origin pour que ses sauvegardes marchent.
+    frame.setAttribute(
+      "sandbox",
+      game.community
+        ? "allow-scripts allow-forms allow-pointer-lock"
+        : "allow-scripts allow-forms allow-pointer-lock allow-same-origin"
+    );
+    frame.src = game.path;
+    document.getElementById("player").classList.add("active");
+  }
+  document.getElementById("player-close").addEventListener("click", () => {
+    document.getElementById("player").classList.remove("active");
+    document.getElementById("player-frame").src = "about:blank";
+  });
+
+  // ---------------- NAV / VIEW SWITCH ----------------
+  function switchView(view){
+    document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    document.getElementById("view-" + view).classList.add("active");
+    if(view === "library") renderLibrary();
+  }
+  document.querySelectorAll(".nav-btn").forEach(btn => {
+    btn.addEventListener("click", () => switchView(btn.dataset.view));
+  });
+
+  function renderAll(){
+    renderAccountZone();
+    renderStoreGrid();
+    renderHero();
+    if(document.getElementById("view-library").classList.contains("active")) renderLibrary();
+  }
+
+  restoreSession();
+</script>
+
+</body>
+</html>

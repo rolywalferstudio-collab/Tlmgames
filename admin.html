@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administration — TLM Games</title>
+<link rel="icon" href="games/royaumes-colonies/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d0a; --panel:#11150f; --panel-2:#161b13; --line:#2b3226;
+    --gold:#c9a227; --gold-bright:#e8c96a; --parchment:#e9e0c6; --parchment-dim:#a8a48c;
+    --crimson:#7a2020; --crimson-bright:#9c2b2b; --green-dim:#5b6b57; --blue:#3a5a80;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--parchment); font-family:'Spectral',serif; min-height:100vh;}
+  a{color:inherit;}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between; padding:14px 26px;
+    border-bottom:1px solid var(--line); background:rgba(10,13,10,0.9);
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{width:26px;height:26px; background:linear-gradient(160deg,var(--crimson-bright),var(--crimson) 60%,#4a1414); clip-path:polygon(50% 0%, 100% 22%, 100% 62%, 50% 100%, 0% 62%, 0% 22%);}
+  .brand-name{font-family:'Cinzel',serif; font-weight:700; letter-spacing:3px; font-size:15px;}
+  .brand-name .tag{color:var(--crimson-bright); font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:2px; margin-left:8px;}
+  header a.back{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--parchment-dim); text-decoration:none; border:1px solid var(--line); padding:8px 14px;}
+  header a.back:hover{color:var(--gold-bright); border-color:var(--gold);}
+
+  #gate{text-align:center; padding:100px 20px;}
+  #gate p{color:var(--parchment-dim);}
+
+  #app{display:none; max-width:1100px; margin:0 auto; padding:30px 24px 100px;}
+  #app.active{display:block;}
+
+  .tabs{display:flex; gap:6px; border-bottom:1px solid var(--line); margin-bottom:26px;}
+  .tab{
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:1.5px; text-transform:uppercase;
+    background:transparent; border:none; color:var(--parchment-dim); padding:12px 18px; cursor:pointer; position:relative;
+  }
+  .tab.active{color:var(--gold-bright);}
+  .tab.active::after{content:""; position:absolute; bottom:-1px; left:0; right:0; height:2px; background:var(--gold);}
+  .tab .count{background:var(--crimson-bright); color:#fff; font-size:9px; padding:1px 6px; border-radius:8px; margin-left:6px;}
+
+  .tabpanel{display:none;}
+  .tabpanel.active{display:block;}
+
+  .card{background:var(--panel); border:1px solid var(--line); padding:18px 20px; margin-bottom:14px;}
+  .card-row{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;}
+  .card-title{font-family:'Cinzel',serif; font-size:16px; margin-bottom:4px;}
+  .card-meta{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--parchment-dim); display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
+  .card-desc{font-size:13.5px; color:var(--parchment-dim); margin-bottom:10px; line-height:1.5;}
+  .tag-pill{border:1px solid var(--line); padding:2px 8px; font-size:10px; letter-spacing:1px; text-transform:uppercase;}
+
+  .btn{
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1px; text-transform:uppercase;
+    padding:9px 16px; cursor:pointer; border:1px solid var(--line); background:transparent; color:var(--parchment-dim);
+  }
+  .btn:hover{border-color:var(--gold); color:var(--gold-bright);}
+  .btn.approve{border-color:var(--gold); color:var(--gold-bright);}
+  .btn.approve:hover{background:var(--gold); color:#151109;}
+  .btn.reject{border-color:var(--crimson);}
+  .btn.reject:hover{border-color:var(--crimson-bright); color:#e8b8b8;}
+  .btn-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .preview-link{color:var(--gold-bright); font-size:12px; text-decoration:underline; cursor:pointer;}
+
+  .empty{color:var(--parchment-dim); font-size:14px; padding:30px 0; text-align:center;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--parchment-dim); padding:10px 12px; border-bottom:1px solid var(--line);}
+  td{padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  .role-pill{padding:2px 8px; font-size:10px; text-transform:uppercase; letter-spacing:1px; border:1px solid var(--line);}
+  .role-pill.admin{color:var(--crimson-bright); border-color:var(--crimson-bright);}
+  .role-pill.moderator{color:var(--blue); border-color:var(--blue);}
+  .verified-dot{width:8px;height:8px;border-radius:50%; display:inline-block; background:var(--green-dim);}
+  .verified-dot.on{background:var(--gold); box-shadow:0 0 5px var(--gold);}
+  .banned-tag{color:var(--crimson-bright); font-family:'JetBrains Mono',monospace; font-size:10px;}
+  select.role-select{background:#0c0f0a; border:1px solid var(--line); color:var(--parchment); padding:4px 6px; font-size:11px;}
+
+  /* Player modal for previewing pending games */
+  #preview-modal{
+    position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:400; display:none; flex-direction:column;
+  }
+  #preview-modal.active{display:flex;}
+  #preview-bar{padding:10px 18px; display:flex; justify-content:space-between; align-items:center; background:#0a0d0a; border-bottom:1px solid var(--line);}
+  #preview-bar button{background:transparent; border:1px solid var(--line); color:var(--parchment-dim); padding:8px 16px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:11px;}
+  #preview-frame{flex:1; border:none;}
+
+  .ticket-body-list{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
+  .reply{padding:10px 0; border-top:1px solid var(--line); font-size:13px;}
+  .reply .who{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--gold); text-transform:uppercase; margin-bottom:3px;}
+  .reply-form{display:flex; gap:8px; margin-top:10px;}
+  .reply-form textarea{flex:1; min-height:50px; background:#0c0f0a; border:1px solid var(--line); color:var(--parchment); padding:8px; font-family:'Spectral',serif;}
+
+  textarea.reason-input{width:100%; min-height:50px; background:#0c0f0a; border:1px solid var(--line); color:var(--parchment); padding:8px; font-family:'Spectral',serif; margin-bottom:8px; display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><div class="brand-mark"></div><div class="brand-name">TLM GAMES <span class="tag">ADMIN</span></div></div>
+  <a class="back" href="index.html">← Retour à la boutique</a>
+</header>
+
+<div id="gate"><p>Accès réservé à l'équipe de modération.</p></div>
+
+<div id="app">
+  <div class="tabs">
+    <button class="tab active" data-tab="pending">Jeux à valider <span class="count" id="count-pending" style="display:none;"></span></button>
+    <button class="tab" data-tab="reports">Signalements <span class="count" id="count-reports" style="display:none;"></span></button>
+    <button class="tab" data-tab="support">Support <span class="count" id="count-support" style="display:none;"></span></button>
+    <button class="tab" data-tab="users">Utilisateurs</button>
+  </div>
+
+  <div class="tabpanel active" id="tab-pending"></div>
+  <div class="tabpanel" id="tab-reports"></div>
+  <div class="tabpanel" id="tab-support"></div>
+  <div class="tabpanel" id="tab-users"></div>
+</div>
+
+<div id="preview-modal">
+  <div id="preview-bar">
+    <span id="preview-title" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--gold-bright);"></span>
+    <button id="preview-close">✕ Fermer l'aperçu</button>
+  </div>
+  <iframe id="preview-frame" sandbox="allow-scripts allow-forms allow-pointer-lock" src="about:blank"></iframe>
+</div>
+
+<script>
+  const TOKEN_KEY = "tlmgames.token";
+  function getToken(){ return localStorage.getItem(TOKEN_KEY); }
+  async function api(path, opts = {}){
+    const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    const token = getToken();
+    if(token) headers["Authorization"] = "Bearer " + token;
+    const res = await fetch("/api" + path, Object.assign({}, opts, { headers }));
+    let data = null;
+    try{ data = await res.json(); }catch(e){}
+    if(!res.ok) throw new Error((data && data.error) || "Erreur serveur.");
+    return data;
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+  function fmtDate(iso){ return iso ? new Date(iso).toLocaleString('fr-FR') : "—"; }
+
+  let currentUser = null;
+
+  async function boot(){
+    const token = getToken();
+    if(!token){ return; }
+    try{
+      const me = await api("/auth/me");
+      if(!["admin","moderator"].includes(me.user.role)){ return; }
+      currentUser = me.user;
+    }catch(e){ return; }
+
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("app").classList.add("active");
+
+    document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => switchTab(t.dataset.tab)));
+    document.getElementById("preview-close").addEventListener("click", () => {
+      document.getElementById("preview-modal").classList.remove("active");
+      document.getElementById("preview-frame").src = "about:blank";
+    });
+
+    await Promise.all([loadPending(), loadReports(), loadSupport(), loadUsers()]);
+  }
+
+  function switchTab(name){
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+    document.querySelectorAll(".tabpanel").forEach(p => p.classList.remove("active"));
+    document.getElementById("tab-" + name).classList.add("active");
+  }
+
+  function openPreview(title, path){
+    document.getElementById("preview-title").textContent = title;
+    document.getElementById("preview-frame").src = path;
+    document.getElementById("preview-modal").classList.add("active");
+  }
+
+  const AGE_LABELS = { tout_public: "Tout public", "10+": "10 ans et +", "13+": "13 ans et +", "16+": "16 ans et +", "18+": "18 ans et +" };
+
+  // ---------------- JEUX EN ATTENTE ----------------
+  async function loadPending(){
+    const data = await api("/admin/projects/pending");
+    const el = document.getElementById("tab-pending");
+    const countEl = document.getElementById("count-pending");
+    if(data.projects.length === 0){
+      countEl.style.display = "none";
+      el.innerHTML = `<div class="empty">Aucun jeu en attente de validation.</div>`;
+      return;
+    }
+    countEl.style.display = "inline-block";
+    countEl.textContent = data.projects.length;
+    el.innerHTML = "";
+    data.projects.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-row">
+          <div style="flex:1; min-width:240px;">
+            <div class="card-title">${escapeHtml(p.title)}</div>
+            <div class="card-meta">
+              <span>par ${escapeHtml(p.ownerUsername)}</span>
+              <span class="tag-pill">${escapeHtml(p.genre || '2D')}</span>
+              <span class="tag-pill">${AGE_LABELS[p.ageRating] || p.ageRating || '?'}</span>
+              <span class="tag-pill">${p.type === 'upload' ? 'Importé (zip)' : 'Éditeur Studio'}</span>
+              <span>soumis le ${fmtDate(p.submittedAt)}</span>
+            </div>
+            <div class="card-desc">${escapeHtml(p.desc || '')}</div>
+            ${p.moderatorNote ? `<div class="card-desc"><strong>Note du créateur :</strong> ${escapeHtml(p.moderatorNote)}</div>` : ''}
+            <span class="preview-link" data-path="${p.path}" data-title="${escapeHtml(p.title)}">▶ Tester le jeu avant de décider</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn approve" data-id="${p.id}" data-act="approve">✓ Approuver</button>
+            <button class="btn reject" data-id="${p.id}" data-act="reject">✕ Refuser</button>
+          </div>
+        </div>
+        <textarea class="reason-input" placeholder="Raison du refus (envoyée au créateur)"></textarea>`;
+
+      card.querySelector(".preview-link").addEventListener("click", (e) => {
+        openPreview(e.target.dataset.title, e.target.dataset.path);
+      });
+      card.querySelector('[data-act="approve"]').addEventListener("click", async () => {
+        try{ await api("/admin/projects/" + p.id + "/approve", { method: "POST" }); await loadPending(); }
+        catch(e){ alert(e.message); }
+      });
+      const rejectBtn = card.querySelector('[data-act="reject"]');
+      const reasonBox = card.querySelector(".reason-input");
+      rejectBtn.addEventListener("click", async () => {
+        if(reasonBox.style.display !== "block"){
+          reasonBox.style.display = "block";
+          reasonBox.focus();
+          return;
+        }
+        try{
+          await api("/admin/projects/" + p.id + "/reject", { method: "POST", body: JSON.stringify({ reason: reasonBox.value }) });
+          await loadPending();
+        }catch(e){ alert(e.message); }
+      });
+      el.appendChild(card);
+    });
+  }
+
+  // ---------------- SIGNALEMENTS ----------------
+  async function loadReports(){
+    const data = await api("/admin/reports");
+    const el = document.getElementById("tab-reports");
+    const countEl = document.getElementById("count-reports");
+    const openReports = data.reports.filter(r => r.status === "open");
+    if(data.reports.length === 0){
+      countEl.style.display = "none";
+      el.innerHTML = `<div class="empty">Aucun signalement.</div>`;
+      return;
+    }
+    countEl.style.display = openReports.length ? "inline-block" : "none";
+    countEl.textContent = openReports.length;
+    el.innerHTML = "";
+    data.reports.forEach(r => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-row">
+          <div style="flex:1; min-width:240px;">
+            <div class="card-title">${escapeHtml(r.gameTitle || 'Jeu supprimé')}</div>
+            <div class="card-meta">
+              <span>signalé par ${escapeHtml(r.reporterUsername)}</span>
+              <span>${fmtDate(r.createdAt)}</span>
+              <span class="tag-pill">${r.status === 'open' ? 'Ouvert' : 'Résolu par ' + escapeHtml(r.resolvedBy || '')}</span>
+            </div>
+            <div class="card-desc"><strong>Motif :</strong> ${escapeHtml(r.reason)}</div>
+          </div>
+          ${r.status === 'open' ? `
+          <div class="btn-row">
+            <button class="btn reject" data-act="unpublish">Dépublier le jeu</button>
+            <button class="btn" data-act="dismiss">Classer sans suite</button>
+          </div>` : ''}
+        </div>`;
+      if(r.status === 'open'){
+        card.querySelector('[data-act="unpublish"]').addEventListener("click", async () => {
+          try{ await api("/admin/reports/" + r.id + "/resolve", { method: "POST", body: JSON.stringify({ action: "unpublish" }) }); await Promise.all([loadReports(), loadPending()]); }
+          catch(e){ alert(e.message); }
+        });
+        card.querySelector('[data-act="dismiss"]').addEventListener("click", async () => {
+          try{ await api("/admin/reports/" + r.id + "/resolve", { method: "POST", body: JSON.stringify({ action: "dismiss" }) }); await loadReports(); }
+          catch(e){ alert(e.message); }
+        });
+      }
+      el.appendChild(card);
+    });
+  }
+
+  // ---------------- SUPPORT ----------------
+  const CATEGORY_LABELS = { verification: "Vérification de compte", ban_appeal: "Contestation de bannissement", bug: "Bug", content_report: "Signalement de contenu", other: "Autre" };
+  const STATUS_LABELS = { open: "Ouvert", in_progress: "En cours", closed: "Fermé" };
+
+  async function loadSupport(){
+    const data = await api("/admin/tickets");
+    const el = document.getElementById("tab-support");
+    const countEl = document.getElementById("count-support");
+    const openCount = data.tickets.filter(t => t.status !== "closed").length;
+    if(data.tickets.length === 0){
+      countEl.style.display = "none";
+      el.innerHTML = `<div class="empty">Aucune demande de support.</div>`;
+      return;
+    }
+    countEl.style.display = openCount ? "inline-block" : "none";
+    countEl.textContent = openCount;
+    el.innerHTML = "";
+    data.tickets.forEach(t => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-row">
+          <div style="flex:1; min-width:240px;">
+            <div class="card-title">${escapeHtml(t.subject)}</div>
+            <div class="card-meta">
+              <span>${escapeHtml(t.username)}</span>
+              <span class="tag-pill">${CATEGORY_LABELS[t.category] || t.category}</span>
+              <span class="tag-pill">${STATUS_LABELS[t.status]}</span>
+            </div>
+          </div>
+          <div class="btn-row">
+            ${t.category === 'verification' ? `<button class="btn approve" data-act="quick-verify">✓ Vérifier ce compte</button>` : ''}
+            ${t.category === 'ban_appeal' ? `<button class="btn approve" data-act="quick-unban">✓ Débannir ce compte</button>` : ''}
+            ${t.status !== 'closed' ? `<button class="btn" data-act="close">Clôturer</button>` : ''}
+          </div>
+        </div>
+        <div class="ticket-body-list">
+          ${t.replies.map(r => `
+            <div class="reply">
+              <div class="who">${r.authorRole === 'user' ? escapeHtml(r.authorName) : (r.authorRole === 'admin' ? 'Administration' : 'Modération')} — ${fmtDate(r.createdAt)}</div>
+              <div>${escapeHtml(r.message)}</div>
+            </div>`).join("")}
+        </div>
+        <div class="reply-form">
+          <textarea placeholder="Répondre à ${escapeHtml(t.username)}..."></textarea>
+          <button class="btn">Envoyer</button>
+        </div>`;
+
+      const quickVerify = card.querySelector('[data-act="quick-verify"]');
+      if(quickVerify) quickVerify.addEventListener("click", async () => {
+        try{
+          const users = (await api("/admin/users")).users;
+          const u = users.find(u => u.username === t.username);
+          if(!u) return alert("Utilisateur introuvable.");
+          await api("/admin/users/" + u.id + "/verify", { method: "POST" });
+          await api("/admin/tickets/" + t.id + "/reply", { method: "POST", body: JSON.stringify({ message: "Ton compte a été vérifié, tu peux maintenant publier des jeux dans le Studio ✔" }) });
+          await Promise.all([loadSupport(), loadUsers()]);
+        }catch(e){ alert(e.message); }
+      });
+      const quickUnban = card.querySelector('[data-act="quick-unban"]');
+      if(quickUnban) quickUnban.addEventListener("click", async () => {
+        try{
+          const users = (await api("/admin/users")).users;
+          const u = users.find(u => u.username === t.username);
+          if(!u) return alert("Utilisateur introuvable.");
+          await api("/admin/users/" + u.id + "/unban", { method: "POST" });
+          await api("/admin/tickets/" + t.id + "/reply", { method: "POST", body: JSON.stringify({ message: "Ton compte a été débanni." }) });
+          await Promise.all([loadSupport(), loadUsers()]);
+        }catch(e){ alert(e.message); }
+      });
+      const closeBtn = card.querySelector('[data-act="close"]');
+      if(closeBtn) closeBtn.addEventListener("click", async () => {
+        try{ await api("/admin/tickets/" + t.id + "/close", { method: "POST" }); await loadSupport(); }
+        catch(e){ alert(e.message); }
+      });
+      card.querySelector(".reply-form button").addEventListener("click", async () => {
+        const textarea = card.querySelector(".reply-form textarea");
+        const message = textarea.value.trim();
+        if(!message) return;
+        try{ await api("/admin/tickets/" + t.id + "/reply", { method: "POST", body: JSON.stringify({ message }) }); await loadSupport(); }
+        catch(e){ alert(e.message); }
+      });
+      el.appendChild(card);
+    });
+  }
+
+  // ---------------- UTILISATEURS ----------------
+  async function loadUsers(){
+    const data = await api("/admin/users");
+    const el = document.getElementById("tab-users");
+    const rows = data.users.map(u => `
+      <tr>
+        <td>${escapeHtml(u.username)}<br><span style="color:var(--parchment-dim); font-size:11px;">${escapeHtml(u.email)}</span></td>
+        <td>
+          ${currentUser.role === 'admin' ? `
+          <select class="role-select" data-id="${u.id}" ${u.id === currentUser.id ? 'disabled' : ''}>
+            <option value="user" ${u.role === 'user' ? 'selected' : ''}>user</option>
+            <option value="moderator" ${u.role === 'moderator' ? 'selected' : ''}>moderator</option>
+            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
+          </select>` : `<span class="role-pill ${u.role}">${u.role}</span>`}
+        </td>
+        <td><span class="verified-dot ${u.verified ? 'on' : ''}"></span> ${u.verified ? 'Vérifié' : 'Non vérifié'}</td>
+        <td>${u.banned ? `<span class="banned-tag">Banni${u.banReason ? ' — ' + escapeHtml(u.banReason) : ''}</span>` : '—'}</td>
+        <td class="btn-row">
+          ${!u.verified ? `<button class="btn" data-act="verify" data-id="${u.id}">Vérifier</button>` : `<button class="btn" data-act="unverify" data-id="${u.id}">Dévérifier</button>`}
+          ${u.role !== 'admin' ? (u.banned
+            ? `<button class="btn" data-act="unban" data-id="${u.id}">Débannir</button>`
+            : `<button class="btn reject" data-act="ban" data-id="${u.id}">Bannir</button>`) : ''}
+        </td>
+      </tr>`).join("");
+
+    el.innerHTML = `
+      <table>
+        <thead><tr><th>Compte</th><th>Rôle</th><th>Vérification</th><th>Statut</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+
+    el.querySelectorAll('[data-act="verify"]').forEach(b => b.addEventListener("click", async () => {
+      try{ await api("/admin/users/" + b.dataset.id + "/verify", { method: "POST" }); await loadUsers(); } catch(e){ alert(e.message); }
+    }));
+    el.querySelectorAll('[data-act="unverify"]').forEach(b => b.addEventListener("click", async () => {
+      try{ await api("/admin/users/" + b.dataset.id + "/unverify", { method: "POST" }); await loadUsers(); } catch(e){ alert(e.message); }
+    }));
+    el.querySelectorAll('[data-act="ban"]').forEach(b => b.addEventListener("click", async () => {
+      const reason = prompt("Raison du bannissement (visible par l'utilisateur) :") || "";
+      try{ await api("/admin/users/" + b.dataset.id + "/ban", { method: "POST", body: JSON.stringify({ reason }) }); await loadUsers(); } catch(e){ alert(e.message); }
+    }));
+    el.querySelectorAll('[data-act="unban"]').forEach(b => b.addEventListener("click", async () => {
+      try{ await api("/admin/users/" + b.dataset.id + "/unban", { method: "POST" }); await loadUsers(); } catch(e){ alert(e.message); }
+    }));
+    el.querySelectorAll(".role-select").forEach(sel => sel.addEventListener("change", async () => {
+      try{ await api("/admin/users/" + sel.dataset.id + "/role", { method: "POST", body: JSON.stringify({ role: sel.value }) }); await loadUsers(); } catch(e){ alert(e.message); }
+    }));
+  }
+
+  boot();
+</script>
+</body>
+</html>

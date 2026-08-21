@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Royaumes & Colonies</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0e14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Royaumes">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; user-select:none; }
+  html,body { width:100%; height:100%; background:#0a0e14; overflow:hidden; font-family:'Georgia', 'Trebuchet MS', serif; }
+  #app { position:relative; width:100%; height:100vh; }
+  canvas { display:block; background:#0a0e14; cursor:default; }
+
+  .screen { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; }
+  .screen.active { display:flex; }
+
+  /* ---------- MENU ---------- */
+  #menu { background: radial-gradient(ellipse at center, #1b2a1f 0%, #0a0e14 75%); }
+  .title { font-size:64px; letter-spacing:6px; color:#e8d9a8; text-shadow:0 0 24px rgba(232,217,168,0.35), 0 4px 0 #000; margin-bottom:8px; font-weight:bold; }
+  .subtitle { color:#7c8f7a; letter-spacing:3px; font-size:14px; margin-bottom:60px; text-transform:uppercase; }
+  .menu-btn { width:280px; padding:16px 0; margin:8px 0; background:linear-gradient(#2a3a2c,#1a2620); border:1px solid #4a5a44; color:#e8d9a8; font-size:20px; letter-spacing:2px; cursor:pointer; transition:all .15s; text-transform:uppercase; }
+  .menu-btn:hover { background:linear-gradient(#3a4e3c,#22301f); border-color:#c9b26a; transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.4); }
+  .back-btn { position:absolute; top:24px; left:24px; padding:10px 18px; background:#1a2620; border:1px solid #4a5a44; color:#c9b26a; cursor:pointer; letter-spacing:1px; }
+  .back-btn:hover { background:#2a3a2c; }
+
+  /* ---------- RACE SELECT ---------- */
+  #raceSelect h2 { color:#e8d9a8; font-size:32px; margin-bottom:30px; letter-spacing:2px; }
+  .race-grid { display:grid; grid-template-columns:repeat(4,180px); gap:16px; max-width:820px; }
+  .race-card { padding:16px 10px; background:#151d16; border:2px solid #333; text-align:center; cursor:pointer; transition:all .15s; }
+  .race-card:hover { border-color:var(--rc); transform:translateY(-4px); }
+  .race-card.selected { border-color:var(--rc); background:#1e2a1e; box-shadow:0 0 16px var(--rc); }
+  .race-swatch { width:56px; height:56px; border-radius:8px; margin:0 auto 10px; background:var(--rc); border:2px solid #000; }
+  .race-name { color:#e8d9a8; font-size:16px; margin-bottom:4px; }
+  .race-desc { color:#8a9086; font-size:11px; line-height:1.4; }
+  .confirm-btn { margin-top:36px; padding:14px 50px; background:#c9b26a; color:#151d16; font-size:18px; letter-spacing:2px; border:none; cursor:pointer; opacity:0.4; pointer-events:none; }
+  .confirm-btn.ready { opacity:1; pointer-events:all; }
+  .confirm-btn.ready:hover { background:#e8d9a8; }
+
+  /* ---------- CHARACTER CREATE ---------- */
+  #charCreate h2 { color:#e8d9a8; font-size:32px; margin-bottom:30px; }
+  .char-box { display:flex; gap:50px; align-items:center; }
+  #charPreview { border:2px solid #4a5a44; background:#0f140f; }
+  .char-form label { display:block; color:#c9b26a; margin-bottom:6px; font-size:13px; letter-spacing:1px; }
+  .char-form input[type=text] { width:220px; padding:10px; background:#151d16; border:1px solid #4a5a44; color:#e8d9a8; font-size:15px; margin-bottom:20px; }
+  .swatches { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; width:220px; }
+  .swatch { width:30px; height:30px; border-radius:50%; cursor:pointer; border:2px solid #222; }
+  .swatch.sel { border-color:#fff; transform:scale(1.15); }
+
+  /* ---------- SAVES ---------- */
+  #saveList { display:flex; flex-direction:column; gap:10px; width:420px; margin-top:10px; }
+  .save-row { padding:14px 18px; background:#151d16; border:1px solid #333; color:#e8d9a8; cursor:pointer; display:flex; justify-content:space-between; }
+  .save-row:hover { border-color:#c9b26a; }
+  .save-empty { color:#666; text-align:center; padding:20px; }
+
+  /* ---------- HUD ---------- */
+  #hud { position:absolute; inset:0; pointer-events:none; display:none; }
+  #hud.active { display:block; }
+  #topbar { position:absolute; top:0; left:0; right:0; height:52px; background:linear-gradient(#1a2016dd,#1a2016aa); display:flex; align-items:center; padding:0 20px; gap:26px; pointer-events:all; border-bottom:1px solid #3a4a34; }
+  .res { color:#e8d9a8; font-size:15px; display:flex; align-items:center; gap:6px; }
+  .res .ic { width:16px; height:16px; border-radius:3px; display:inline-block; }
+  #buildbar { position:absolute; bottom:0; left:0; right:0; height:86px; max-width:100vw; background:linear-gradient(#1a2016aa,#1a2016ee); display:flex; align-items:center; justify-content:flex-start; gap:14px; pointer-events:all; border-top:1px solid #3a4a34; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; padding:0 10px; box-sizing:border-box; }
+  .build-btn { width:78px; min-width:78px; height:64px; background:#151d16; border:1px solid #4a5a44; color:#e8d9a8; font-size:11px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; cursor:pointer; text-align:center; box-sizing:border-box; }
+  .build-btn:hover { border-color:#c9b26a; background:#1e2a1e; }
+  .build-btn.active { border-color:#e05a4a; box-shadow:0 0 10px #e05a4a; }
+  .build-btn .cost { color:#8fae6a; font-size:10px; }
+  #infoPanel { position:absolute; top:60px; right:14px; width:200px; background:#151d16ee; border:1px solid #4a5a44; color:#e8d9a8; padding:12px; font-size:13px; pointer-events:all; display:none; }
+  #infoPanel.show { display:block; }
+  #infoPanel h4 { color:#c9b26a; margin-bottom:8px; font-size:14px; }
+  #hint { position:absolute; top:60px; left:14px; color:#9aa88f; font-size:12px; background:#151d16cc; padding:8px 12px; border:1px solid #333; max-width:260px; pointer-events:none; }
+  #menuBtnInGame { position:absolute; top:10px; right:14px; padding:8px 14px; background:#1a2620; border:1px solid #4a5a44; color:#c9b26a; cursor:pointer; pointer-events:all; font-size:12px; }
+
+  /* ---------- MINIMAP ---------- */
+  #minimapWrap { position:absolute; top:60px; right:14px; width:150px; pointer-events:none; }
+  #minimap { width:150px; height:110px; border:2px solid #4a5a44; background:#08110a; display:block; }
+  #dayNightLabel { text-align:center; color:#e8d9a8; font-size:11px; margin-top:4px; background:#151d16cc; padding:3px; border:1px solid #333; }
+
+  /* ---------- MOBILE CONTROLS ---------- */
+  #joystickBase { position:absolute; left:22px; bottom:100px; width:110px; height:110px; border-radius:50%; background:#0007; border:2px solid #4a5a44; pointer-events:all; touch-action:none; display:none; }
+  #joystickStick { position:absolute; width:46px; height:46px; border-radius:50%; background:#c9b26aaa; left:32px; top:32px; pointer-events:none; }
+  #btnModeToggle { position:absolute; bottom:100px; right:20px; padding:12px 16px; background:#1a2620; border:1px solid #4a5a44; color:#c9b26a; font-size:12px; pointer-events:all; display:none; border-radius:8px; }
+  #btnModeToggle.order-mode { border-color:#e05a4a; color:#e8d9a8; background:#3a1a1a; }
+
+  .touch-device #joystickBase, .touch-device #btnModeToggle { display:block; }
+  .touch-device #hint { display:none; }
+  .touch-device .build-btn { width:58px; min-width:58px; height:56px; font-size:9px; }
+  .touch-device #buildbar { gap:6px; padding:0 6px; justify-content:flex-start; height:78px; }
+  .touch-device #joystickBase { bottom:88px; }
+  .touch-device #btnModeToggle { bottom:88px; }
+  .touch-device #topbar { flex-wrap:wrap; height:auto; padding:6px 10px; gap:10px 16px; }
+  .touch-device .res { font-size:12px; }
+  .touch-device #minimapWrap { width:110px; top:auto; bottom:100px; left:14px; right:auto; }
+  .touch-device #minimap { width:110px; height:80px; }
+
+  @media (max-width:640px){
+    .title { font-size:38px; }
+    .race-grid { grid-template-columns:repeat(2,150px); max-width:320px; }
+    .char-box { flex-direction:column; gap:20px; }
+    .menu-btn { width:230px; font-size:16px; }
+  }
+
+  /* ---------- DIPLOMATIE ---------- */
+  .kingdom-row { display:flex; align-items:center; gap:12px; padding:12px; background:#0f140f; border:1px solid #333; margin-bottom:10px; }
+  .kingdom-swatch { width:36px; height:36px; border-radius:6px; flex-shrink:0; }
+  .kingdom-info { flex:1; }
+  .kingdom-name { color:#e8d9a8; font-size:15px; }
+  .kingdom-status { font-size:11px; letter-spacing:1px; text-transform:uppercase; }
+  .relation-bar { width:100%; height:6px; background:#000; margin-top:4px; }
+  .relation-fill { height:100%; }
+  .kingdom-actions { display:flex; flex-direction:column; gap:6px; }
+  .kingdom-actions button { padding:6px 10px; font-size:11px; background:#1a2620; border:1px solid #4a5a44; color:#e8d9a8; cursor:pointer; }
+  .kingdom-actions button:hover { border-color:#c9b26a; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="menu" class="screen active">
+    <div class="title">ROYAUMES & COLONIES</div>
+    <div class="subtitle">Bâtis. Récolte. Règne.</div>
+    <button class="menu-btn" id="btnPlay">Jouer</button>
+    <button class="menu-btn" id="btnSettings">Paramètres</button>
+    <button class="menu-btn" id="btnCredits">Crédits</button>
+  </div>
+
+  <div id="playChoice" class="screen">
+    <button class="back-btn" data-back="menu">&larr; Retour</button>
+    <div class="title" style="font-size:36px;">Jouer</div>
+    <button class="menu-btn" id="btnNewGame">Nouvelle partie</button>
+    <button class="menu-btn" id="btnLoadGame">Charger une sauvegarde</button>
+  </div>
+
+  <div id="loadScreen" class="screen">
+    <button class="back-btn" data-back="playChoice">&larr; Retour</button>
+    <h2 style="color:#e8d9a8;margin-bottom:16px;">Sauvegardes</h2>
+    <div id="saveList"></div>
+  </div>
+
+  <div id="raceSelect" class="screen">
+    <button class="back-btn" data-back="playChoice">&larr; Retour</button>
+    <h2>Choisis ton peuple</h2>
+    <div class="race-grid" id="raceGrid"></div>
+    <button class="confirm-btn" id="btnConfirmRace">Continuer</button>
+  </div>
+
+  <div id="charCreate" class="screen">
+    <button class="back-btn" data-back="raceSelect">&larr; Retour</button>
+    <h2>Ton personnage</h2>
+    <div class="char-box">
+      <canvas id="charPreview" width="180" height="180"></canvas>
+      <div class="char-form">
+        <label>NOM</label>
+        <input type="text" id="charName" maxlength="16" placeholder="Aldric">
+        <label>COULEUR</label>
+        <div class="swatches" id="charSwatches"></div>
+        <button class="menu-btn" id="btnStartMap" style="width:220px;">Lancer la carte</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings" class="screen">
+    <button class="back-btn" data-back="menu">&larr; Retour</button>
+    <h2 style="color:#e8d9a8;">Paramètres</h2>
+    <p style="color:#8a9086;margin-top:16px;max-width:420px;text-align:center;line-height:1.6;">Prototype — les options de son, résolution et contrôles seront ajoutées dans une prochaine version.</p>
+  </div>
+
+  <div id="credits" class="screen">
+    <button class="back-btn" data-back="menu">&larr; Retour</button>
+    <h2 style="color:#e8d9a8;">Crédits</h2>
+    <p style="color:#8a9086;margin-top:16px;">Prototype généré avec Claude — base de jeu de gestion de colonie.</p>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="hud">
+    <div id="topbar">
+      <div class="res"><span class="ic" style="background:#8a5a2a;"></span><span id="woodCount">0</span> Bois</div>
+      <div class="res"><span class="ic" style="background:#888;"></span><span id="stoneCount">0</span> Pierre</div>
+      <div class="res"><span class="ic" style="background:#6a9e3a;"></span><span id="foodCount">0</span> Nourriture</div>
+      <div class="res"><span class="ic" style="background:#c9b26a;"></span><span id="popCount">0/0</span> Colons</div>
+      <div class="res"><span style="color:#a83a3a;">❤</span> <span id="playerHp">50/50</span></div>
+      <div class="res" id="raceLabel" style="margin-left:auto;"></div>
+    </div>
+    <div id="hint">ZQSD/Flèches : déplacer &nbsp;|&nbsp; Clic gauche : sélectionner un colon (ou attaquer un ennemi) &nbsp;|&nbsp; Clic droit : ordre de déplacement</div>
+    <div id="notifBox" style="position:absolute;top:60px;left:50%;transform:translateX(-50%);color:#e8d9a8;background:#3a1a1acc;border:1px solid #a83a3a;padding:8px 16px;font-size:13px;display:none;pointer-events:none;"></div>
+    <div id="infoPanel"><h4 id="infoTitle"></h4><div id="infoBody"></div></div>
+    <div id="minimapWrap"><canvas id="minimap" width="150" height="110"></canvas><div id="dayNightLabel">☀ Jour</div></div>
+    <button id="btnDiplomacy" style="position:absolute;top:60px;left:14px;padding:8px 14px;background:#1a2620;border:1px solid #4a5a44;color:#c9b26a;cursor:pointer;pointer-events:all;font-size:12px;display:none;">🏳️ Royaumes</button>
+    <div id="diploPanel" style="display:none;position:absolute;inset:0;background:#0a0e14ee;pointer-events:all;align-items:center;justify-content:center;">
+      <div style="width:min(520px,90vw);max-height:80vh;overflow-y:auto;background:#151d16;border:1px solid #4a5a44;padding:20px;">
+        <h3 style="color:#e8d9a8;margin-bottom:14px;letter-spacing:1px;">Les Royaumes voisins</h3>
+        <div id="kingdomList"></div>
+        <button id="btnCloseDiplo" style="margin-top:16px;padding:10px 20px;background:#1a2620;border:1px solid #4a5a44;color:#c9b26a;cursor:pointer;">Fermer</button>
+      </div>
+    </div>
+    <button id="menuBtnInGame">Menu ⏸</button>
+    <div id="buildbar"></div>
+    <div id="joystickBase"><div id="joystickStick"></div></div>
+    <button id="btnModeToggle">Mode : Sélection</button>
+  </div>
+
+</div>
+
+<script>
+/* ============================= DONNÉES ============================= */
+const RACES = [
+  {id:'humains', name:'Humains', color:'#c98a4a', roof:'#7a4a24', desc:'Polyvalents, bâtisses en bois et pierre équilibrées.'},
+  {id:'elfes',   name:'Elfes',   color:'#5ac98a', roof:'#2f7a52', desc:'Maisons fines nichées dans la végétation.'},
+  {id:'orcs',    name:'Orcs',    color:'#7a8a3a', roof:'#4a5a1a', desc:'Constructions robustes en bois brut et os.'},
+  {id:'demons',  name:'Démons',  color:'#a83a3a', roof:'#5a1616', desc:'Architecture sombre aux toits acérés.'},
+  {id:'nains',   name:'Nains',   color:'#8a6a3a', roof:'#4a3a1a', desc:'Bâtisses trapues en pierre taillée.'},
+  {id:'poissons',name:'Poissons',color:'#3a8aa8', roof:'#1a4a5a', desc:'Habitats côtiers aux teintes bleutées.'},
+  {id:'anges',   name:'Anges',   color:'#e8d9a8', roof:'#b8a878', desc:'Structures claires aux lignes épurées.'},
+];
+const CHAR_COLORS = ['#e05a4a','#4a90e0','#e0c04a','#4ae08a','#a84ae0','#e0824a','#4ae0d0','#e04aa8'];
+
+const TILE = 28, MAP_W = 46, MAP_H = 32;
+const TILE_WATER=0, TILE_GRASS=1, TILE_FOREST=2, TILE_STONE=3, TILE_SAND=4;
+
+const BUILD_TYPES = {
+  townhall:   {label:'Hôtel de ville', cost:{wood:40}, icon:'🏛️', job:null, w:1,h:1, hp:150, isTownHall:true},
+  lumberjack: {label:'Bûcheron', cost:{wood:20}, icon:'🪓', job:'lumberjack', w:1,h:1, hp:60},
+  quarry:     {label:'Carrière', cost:{wood:20}, icon:'⛏️', job:'miner', w:1,h:1, hp:60},
+  farm:       {label:'Ferme',    cost:{wood:25}, icon:'🌾', job:'farmer', w:1,h:1, hp:50},
+  house:      {label:'Maison',   cost:{wood:30}, icon:'🏠', job:null, w:1,h:1, popBonus:2, hp:70},
+  barracks:   {label:'Caserne',  cost:{wood:30,stone:20}, icon:'⚔️', job:'soldier', w:1,h:1, hp:120},
+};
+
+/* ============================= ETAT ============================= */
+let screenEls = {};
+document.querySelectorAll('.screen').forEach(el=>screenEls[el.id]=el);
+function showScreen(id){
+  Object.values(screenEls).forEach(e=>e.classList.remove('active'));
+  screenEls[id].classList.add('active');
+  document.getElementById('hud').classList.remove('active');
+}
+
+const state = {
+  race: null,
+  charName: '',
+  charColor: CHAR_COLORS[0],
+  map: null,          // [y][x] tile type
+  resAmt: null,        // [y][x] resource amount (forest/stone)
+  buildings: [],
+  colonists: [],
+  player: {x:0,y:0,dir:0,anim:0},
+  resources: {wood:30, stone:0, food:20},
+  camera: {x:0,y:0},
+  selectedColonist: -1,
+  selectedEnemy: -1,
+  placingBuilding: null,
+  running: false,
+  enemies: [],
+  foodTimer: 0,
+  popTimer: 0,
+  enemyTimer: 12,
+  notif: '',
+  notifTimer: 0,
+  dayTime: 0,
+  joystick: {x:0,y:0,active:false},
+  mobileMode: 'select',
+  minimapBase: null,
+  kingdoms: [],
+};
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints>0;
+if(isTouchDevice) document.body.classList.add('touch-device');
+function notify(msg){ state.notif = msg; state.notifTimer = 4; }
+
+/* ============================= MENU NAV ============================= */
+document.getElementById('btnPlay').onclick = ()=> showScreen('playChoice');
+document.getElementById('btnSettings').onclick = ()=> showScreen('settings');
+document.getElementById('btnCredits').onclick = ()=> showScreen('credits');
+document.querySelectorAll('[data-back]').forEach(b=>{
+  b.onclick = ()=> showScreen(b.dataset.back);
+});
+document.getElementById('btnNewGame').onclick = ()=> { buildRaceGrid(); showScreen('raceSelect'); };
+document.getElementById('btnLoadGame').onclick = async ()=> { await populateSaves(); showScreen('loadScreen'); };
+
+/* ---------- Race select ---------- */
+function buildRaceGrid(){
+  const grid = document.getElementById('raceGrid');
+  grid.innerHTML='';
+  state.race = null;
+  document.getElementById('btnConfirmRace').classList.remove('ready');
+  RACES.forEach(r=>{
+    const card = document.createElement('div');
+    card.className='race-card';
+    card.style.setProperty('--rc', r.color);
+    card.innerHTML = `<div class="race-swatch"></div><div class="race-name">${r.name}</div><div class="race-desc">${r.desc}</div>`;
+    card.onclick = ()=>{
+      document.querySelectorAll('.race-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.race = r;
+      document.getElementById('btnConfirmRace').classList.add('ready');
+    };
+    grid.appendChild(card);
+  });
+}
+document.getElementById('btnConfirmRace').onclick = ()=>{
+  if(!state.race) return;
+  buildCharCreate();
+  showScreen('charCreate');
+};
+
+/* ---------- Character create ---------- */
+function buildCharCreate(){
+  const sw = document.getElementById('charSwatches');
+  sw.innerHTML='';
+  state.charColor = CHAR_COLORS[0];
+  CHAR_COLORS.forEach((c,i)=>{
+    const d = document.createElement('div');
+    d.className='swatch'+(i===0?' sel':'');
+    d.style.background=c;
+    d.onclick=()=>{
+      document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('sel'));
+      d.classList.add('sel');
+      state.charColor=c;
+      drawCharPreview();
+    };
+    sw.appendChild(d);
+  });
+  document.getElementById('charName').value='';
+  drawCharPreview();
+}
+function drawCharPreview(){
+  const cv = document.getElementById('charPreview');
+  const ctx2 = cv.getContext('2d');
+  ctx2.clearRect(0,0,180,180);
+  ctx2.fillStyle = '#0f140f'; ctx2.fillRect(0,0,180,180);
+  const sprite = state.race ? getSprite(ASSET_PATHS.joueur(state.race.id)) : null;
+  if(sprite){ ctx2.drawImage(sprite, 90-32, 110-64, 64, 64); }
+  else { drawHumanoid(ctx2, 90, 110, state.charColor, 2.2, 0, 0); }
+}
+document.getElementById('btnStartMap').onclick = ()=>{
+  state.charName = document.getElementById('charName').value.trim() || 'Sans-Nom';
+  startNewGame();
+};
+
+/* ============================= GENERATION CARTE ============================= */
+function generateMap(){
+  const map = []; const res = [];
+  const cx = MAP_W/2, cy = MAP_H/2;
+  for(let y=0;y<MAP_H;y++){
+    map.push([]); res.push([]);
+    for(let x=0;x<MAP_W;x++){
+      const d = Math.hypot(x-cx,y-cy)/Math.max(cx,cy);
+      const noise = (Math.sin(x*0.7)+Math.cos(y*0.6)+Math.sin((x+y)*0.35))*0.06;
+      let t = TILE_GRASS;
+      if(d + noise > 0.92) t = TILE_WATER;
+      else if(d + noise > 0.80) t = TILE_SAND;
+      map[y].push(t); res[y].push(0);
+    }
+  }
+  // forest clusters
+  for(let i=0;i<14;i++){
+    const fx = 4+Math.random()*(MAP_W-8), fy = 4+Math.random()*(MAP_H-8);
+    if(Math.hypot(fx-cx,fy-cy) < 6) continue; // keep spawn clear
+    const rad = 2+Math.random()*3;
+    for(let y=Math.max(0,fy-rad); y<Math.min(MAP_H,fy+rad); y++){
+      for(let x=Math.max(0,fx-rad); x<Math.min(MAP_W,fx+rad); x++){
+        if(map[Math.floor(y)][Math.floor(x)]===TILE_GRASS && Math.hypot(x-fx,y-fy)<rad*Math.random()+0.5){
+          map[Math.floor(y)][Math.floor(x)] = TILE_FOREST;
+          res[Math.floor(y)][Math.floor(x)] = 6 + Math.floor(Math.random()*6);
+        }
+      }
+    }
+  }
+  // stone clusters
+  for(let i=0;i<6;i++){
+    const fx = 4+Math.random()*(MAP_W-8), fy = 4+Math.random()*(MAP_H-8);
+    if(Math.hypot(fx-cx,fy-cy) < 7) continue;
+    const rad = 1.5+Math.random()*2;
+    for(let y=Math.max(0,fy-rad); y<Math.min(MAP_H,fy+rad); y++){
+      for(let x=Math.max(0,fx-rad); x<Math.min(MAP_W,fx+rad); x++){
+        if(map[Math.floor(y)][Math.floor(x)]===TILE_GRASS && Math.hypot(x-fx,y-fy)<rad*Math.random()+0.4){
+          map[Math.floor(y)][Math.floor(x)] = TILE_STONE;
+          res[Math.floor(y)][Math.floor(x)] = 10 + Math.floor(Math.random()*8);
+        }
+      }
+    }
+  }
+  // clear spawn zone
+  for(let y=cy-3;y<cy+3;y++) for(let x=cx-3;x<cx+3;x++){
+    if(map[Math.floor(y)] && map[Math.floor(y)][Math.floor(x)]!==undefined) map[Math.floor(y)][Math.floor(x)]=TILE_GRASS;
+  }
+  return {map,res};
+}
+
+/* ============================= NOUVELLE PARTIE ============================= */
+function startNewGame(){
+  const g = generateMap();
+  state.map = g.map; state.resAmt = g.res;
+  state.buildings = [];
+  state.resources = {wood:30, stone:0, food:20};
+  const cx = MAP_W/2, cy = MAP_H/2;
+  state.player = {x:cx*TILE, y:cy*TILE, dir:0, anim:0, name:state.charName, color:state.charColor, hp:50, maxhp:50, atk:7, attackTarget:-1, atkTimer:0};
+  state.colonists = [];
+  for(let i=0;i<3;i++){
+    state.colonists.push(makeColonist(cx*TILE + (i-1)*34, cy*TILE + 40));
+  }
+  state.enemies = [];
+  state.foodTimer = 0; state.popTimer = 0; state.enemyTimer = 40;
+  state.dayTime = 0;
+  state.kingdoms = RACES.filter(r=>r.id!==state.race.id).map(r=>({
+    id:r.id, name:'Royaume '+(r.id==='humains'?'des Humains':r.id==='elfes'?'des Elfes':r.id==='orcs'?'des Orcs':r.id==='demons'?'des Démons':r.id==='nains'?'des Nains':r.id==='poissons'?'des Poissons':'des Anges'),
+    color:r.color, relation: 10+Math.random()*25, status:'neutre', timer: 20+Math.random()*30, angle: Math.random()*Math.PI*2
+  }));
+  state.selectedColonist = -1;
+  state.selectedEnemy = -1;
+  state.placingBuilding = null;
+  buildMinimapBase();
+  buildBuildBar();
+  document.getElementById('btnDiplomacy').style.display='block';
+  document.getElementById('raceLabel').textContent = state.race.name + (state.charName? (' — '+state.charName):'');
+  screenEls['menu'].classList.remove('active'); // ensure all screens off except hud
+  Object.values(screenEls).forEach(e=>e.classList.remove('active'));
+  document.getElementById('hud').classList.add('active');
+  centerCameraOnPlayer();
+  state.running = true;
+  updateResourceUI();
+}
+function makeColonist(x,y){
+  return {x,y,dir:0,anim:Math.random()*10,state:'idle',job:null,workplace:-1,carrying:0,carryType:null,tx:x,ty:y,timer:0,manual:false,hp:20,maxhp:20,atk:3};
+}
+
+/* ============================= STOCKAGE PORTABLE ============================= */
+/* Utilise window.storage sur claude.ai, et localStorage partout ailleurs
+   (site web autonome, appli Electron .exe, appli Capacitor .apk) */
+const hasCloudStorage = (typeof window.storage !== 'undefined');
+async function storageSet(key, value){
+  if(hasCloudStorage) return window.storage.set(key, value, false);
+  localStorage.setItem(key, value);
+  return {key, value};
+}
+async function storageGet(key){
+  if(hasCloudStorage) return window.storage.get(key, false);
+  const v = localStorage.getItem(key);
+  if(v===null) throw new Error('missing key');
+  return {key, value:v};
+}
+async function storageList(prefix){
+  if(hasCloudStorage) return window.storage.list(prefix, false);
+  const keys=[];
+  for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.indexOf(prefix)===0) keys.push(k); }
+  return {keys};
+}
+
+/* ============================= SAUVEGARDE ============================= */
+async function saveGame(slotName){
+  const data = {
+    race: state.race, charName: state.charName, charColor: state.charColor,
+    map: state.map, resAmt: state.resAmt, buildings: state.buildings,
+    colonists: state.colonists, player: state.player, resources: state.resources,
+    enemies: state.enemies,
+    kingdoms: state.kingdoms,
+    dayTime: state.dayTime,
+    date: new Date().toLocaleString('fr-FR')
+  };
+  try{
+    await storageSet('save:'+slotName, JSON.stringify(data));
+    return true;
+  }catch(e){ console.error('Erreur sauvegarde', e); return false; }
+}
+async function populateSaves(){
+  const list = document.getElementById('saveList');
+  list.innerHTML = '<div class="save-empty">Chargement...</div>';
+  try{
+    const r = await storageList('save:');
+    const keys = (r && r.keys) ? r.keys : [];
+    if(keys.length===0){ list.innerHTML = '<div class="save-empty">Aucune sauvegarde pour le moment.</div>'; return; }
+    list.innerHTML='';
+    for(const k of keys){
+      try{
+        const res = await storageGet(k);
+        const d = JSON.parse(res.value);
+        const row = document.createElement('div');
+        row.className='save-row';
+        row.innerHTML = `<span>${d.charName||'Colonie'} — ${d.race?d.race.name:'?'}</span><span style="color:#8a9086;">${d.date||''}</span>`;
+        row.onclick = ()=> loadGame(d);
+        list.appendChild(row);
+      }catch(e){}
+    }
+  }catch(e){
+    list.innerHTML = '<div class="save-empty">Impossible de charger les sauvegardes.</div>';
+  }
+}
+function loadGame(d){
+  state.race = d.race; state.charName = d.charName; state.charColor = d.charColor;
+  state.map = d.map; state.resAmt = d.resAmt; state.buildings = d.buildings;
+  state.colonists = d.colonists; state.player = d.player; state.resources = d.resources;
+  state.enemies = d.enemies || [];
+  if(state.resources.food===undefined) state.resources.food = 10;
+  state.colonists.forEach(c=>{ if(c.hp===undefined){ c.hp=20; c.maxhp=20; c.atk=3; } });
+  if(state.player.hp===undefined){ state.player.hp=50; state.player.maxhp=50; state.player.atk=7; state.player.attackTarget=-1; state.player.atkTimer=0; }
+  state.foodTimer=0; state.popTimer=0; state.enemyTimer=20;
+  state.dayTime = d.dayTime || 0;
+  state.kingdoms = d.kingdoms || RACES.filter(r=>r.id!==state.race.id).map(r=>({
+    id:r.id, name:'Royaume de '+r.name, color:r.color, relation:15, status:'neutre', timer:30, angle:Math.random()*Math.PI*2
+  }));
+  buildMinimapBase();
+  buildBuildBar();
+  document.getElementById('btnDiplomacy').style.display='block';
+  document.getElementById('raceLabel').textContent = state.race.name + (state.charName? (' — '+state.charName):'');
+  Object.values(screenEls).forEach(e=>e.classList.remove('active'));
+  document.getElementById('hud').classList.add('active');
+  centerCameraOnPlayer();
+  state.running = true;
+  updateResourceUI();
+}
+
+/* ============================= BUILD BAR ============================= */
+function buildBuildBar(){
+  const bar = document.getElementById('buildbar');
+  bar.innerHTML='';
+  const hasTownHall = state.buildings.some(b=>b.type==='townhall');
+  Object.entries(BUILD_TYPES).forEach(([key,b])=>{
+    if(b.isTownHall && hasTownHall) return; // one town hall only
+    const locked = !b.isTownHall && !hasTownHall;
+    const btn = document.createElement('div');
+    btn.className='build-btn'+(locked?'':'');
+    btn.style.opacity = locked? '0.35':'1';
+    btn.innerHTML = `<div style="font-size:20px;">${b.icon}</div><div>${b.label}</div><div class="cost">${locked? 'Verrouillé' : Object.entries(b.cost).map(([k,v])=>v+' '+(k==='wood'?'bois':'pierre')).join(', ')}</div>`;
+    btn.onclick = ()=>{
+      if(locked){ notify("Construis d'abord l'Hôtel de ville !"); return; }
+      document.querySelectorAll('.build-btn').forEach(x=>x.classList.remove('active'));
+      if(state.placingBuilding===key){ state.placingBuilding=null; return; }
+      state.placingBuilding = key;
+      btn.classList.add('active');
+    };
+    bar.appendChild(btn);
+  });
+}
+
+/* ============================= CANVAS / RENDU ============================= */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
+
+function centerCameraOnPlayer(){
+  state.camera.x = state.player.x - canvas.width/2;
+  state.camera.y = state.player.y - canvas.height/2;
+}
+
+const TILE_COLORS = {
+  [TILE_WATER]: '#1a4a5c',
+  [TILE_GRASS]: '#3a5a2e',
+  [TILE_FOREST]: '#2e4a24',
+  [TILE_STONE]: '#4a4a48',
+  [TILE_SAND]: '#a89060',
+};
+
+function worldToScreen(x,y){ return {x: x - state.camera.x, y: y - state.camera.y}; }
+
+function drawMap(){
+  const startX = Math.max(0, Math.floor(state.camera.x/TILE)-1);
+  const startY = Math.max(0, Math.floor(state.camera.y/TILE)-1);
+  const endX = Math.min(MAP_W, Math.ceil((state.camera.x+canvas.width)/TILE)+1);
+  const endY = Math.min(MAP_H, Math.ceil((state.camera.y+canvas.height)/TILE)+1);
+  for(let y=startY;y<endY;y++){
+    for(let x=startX;x<endX;x++){
+      const t = state.map[y][x];
+      const sx = x*TILE - state.camera.x, sy = y*TILE - state.camera.y;
+      ctx.fillStyle = TILE_COLORS[t];
+      ctx.fillRect(sx,sy,TILE+1,TILE+1);
+      if(t===TILE_GRASS && (x*7+y*13)%23===0){
+        ctx.fillStyle='rgba(255,255,255,0.03)';
+        ctx.fillRect(sx,sy,TILE,TILE);
+      }
+      if(t===TILE_FOREST){
+        drawTree(sx+TILE/2, sy+TILE/2, state.resAmt[y][x]>0);
+      }
+      if(t===TILE_STONE){
+        drawRock(sx+TILE/2, sy+TILE/2, state.resAmt[y][x]>0);
+      }
+    }
+  }
+}
+function drawTree(x,y,hasRes){
+  if(!hasRes){ ctx.fillStyle='#5a4a34'; ctx.beginPath(); ctx.arc(x,y,4,0,7); ctx.fill(); return; }
+  ctx.fillStyle='#4a3624';
+  ctx.fillRect(x-2,y-2,4,10);
+  ctx.fillStyle='#1f4a1c';
+  ctx.beginPath(); ctx.moveTo(x,y-22); ctx.lineTo(x-11,y-2); ctx.lineTo(x+11,y-2); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#2a5a26';
+  ctx.beginPath(); ctx.moveTo(x,y-16); ctx.lineTo(x-8,y-2); ctx.lineTo(x+8,y-2); ctx.closePath(); ctx.fill();
+}
+function drawRock(x,y,hasRes){
+  ctx.fillStyle = hasRes? '#7a7a76':'#4a4a48';
+  ctx.beginPath();
+  ctx.moveTo(x-9,y+6); ctx.lineTo(x-6,y-6); ctx.lineTo(x+2,y-9); ctx.lineTo(x+9,y-2); ctx.lineTo(x+6,y+7); ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='#2a2a28'; ctx.lineWidth=1; ctx.stroke();
+}
+
+function drawBuilding(b){
+  const sx = b.x - state.camera.x, sy = b.y - state.camera.y;
+  const bt = BUILD_TYPES[b.type];
+  const sc = 1 + ((b.level||1)-1)*0.15;
+  const sprite = getSprite(ASSET_PATHS.batiment(state.race.id, b.type));
+  if(sprite){
+    const w = 64*sc, h = 64*sc;
+    ctx.drawImage(sprite, sx-w/2, sy-h+10, w, h);
+  } else {
+    const raceColor = state.race.color, roofColor = state.race.roof;
+    ctx.fillStyle = raceColor;
+    ctx.fillRect(sx-16*sc, sy-10*sc, 32*sc, 24*sc);
+    ctx.fillStyle = roofColor;
+    ctx.beginPath(); ctx.moveTo(sx-20*sc,sy-10*sc); ctx.lineTo(sx,sy-26*sc); ctx.lineTo(sx+20*sc,sy-10*sc); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#000'; ctx.font='16px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(bt.icon, sx, sy+30);
+  }
+  if(b.selected){
+    ctx.strokeStyle='#e8d9a8'; ctx.lineWidth=2;
+    ctx.strokeRect(sx-20,sy-28,40,58);
+  }
+  if(b.hp!==undefined && b.hp<b.maxhp){
+    drawHpBar(sx, sy-32, 34, b.hp, b.maxhp);
+  }
+}
+function drawHpBar(sx,sy,w,hp,maxhp){
+  ctx.fillStyle='#000a'; ctx.fillRect(sx-w/2, sy, w, 5);
+  const pct = Math.max(0,hp/maxhp);
+  ctx.fillStyle = pct>0.5? '#4ae08a' : (pct>0.25? '#e0c04a':'#e05a4a');
+  ctx.fillRect(sx-w/2, sy, w*pct, 5);
+}
+
+/* ============================= SPRITES PNG (avec repli vectoriel) =============================
+   Dépose tes images dans les dossiers assets/personnages/ et assets/batiments/
+   (voir assets/LISEZMOI.md pour les noms de fichiers exacts et les tailles conseillées).
+   Tant qu'un fichier n'existe pas, le dessin vectoriel actuel est utilisé automatiquement. */
+const ASSET_PATHS = {
+  colon:      (race)=> `assets/personnages/${race}_colon.png`,
+  soldat:     (race)=> `assets/personnages/${race}_soldat.png`,
+  joueur:     (race)=> `assets/personnages/${race}_joueur.png`,
+  ennemi:     (race)=> `assets/personnages/${race}_ennemi.png`,
+  batiment:   (race,type)=> `assets/batiments/${race}_${type}.png`,
+};
+const spriteCache = {};
+function getSprite(path){
+  let entry = spriteCache[path];
+  if(!entry){
+    entry = {img:new Image(), loaded:false, failed:false};
+    entry.img.onload = ()=> entry.loaded = true;
+    entry.img.onerror = ()=> entry.failed = true;
+    entry.img.src = path;
+    spriteCache[path] = entry;
+  }
+  return entry.loaded ? entry.img : null;
+}
+
+function drawHumanoid(context, x, y, color, scale, walkPhase, actionPhase){
+  const s = scale;
+  context.save();
+  context.translate(x,y);
+  context.scale(s,s);
+  const bob = Math.sin(walkPhase)*1.5;
+  // legs
+  context.strokeStyle = '#2a2018'; context.lineWidth = 3;
+  context.beginPath();
+  context.moveTo(-3, -6); context.lineTo(-3+Math.sin(walkPhase)*4, 6);
+  context.moveTo(3, -6); context.lineTo(3-Math.sin(walkPhase)*4, 6);
+  context.stroke();
+  // body
+  context.fillStyle = color;
+  context.fillRect(-6, -18+bob*0.2, 12, 14);
+  // head
+  context.fillStyle = '#e0b088';
+  context.beginPath(); context.arc(0,-22+bob*0.2,6,0,7); context.fill();
+  // arm (action swing e.g. chopping)
+  context.strokeStyle = color; context.lineWidth=3;
+  const armSwing = Math.sin(actionPhase)*40;
+  context.save();
+  context.translate(6,-14+bob*0.2);
+  context.rotate((armSwing)*Math.PI/180);
+  context.beginPath(); context.moveTo(0,0); context.lineTo(0,10); context.stroke();
+  context.restore();
+  context.beginPath();
+  context.moveTo(-6,-14+bob*0.2); context.lineTo(-6-Math.sin(walkPhase)*3,-4+bob*0.2);
+  context.stroke();
+  context.restore();
+}
+
+function drawColonist(c){
+  const sx = c.x - state.camera.x, sy = c.y - state.camera.y;
+  const walking = (c.state==='moving'||c.state==='returning'||c.state==='engaging');
+  const acting = (c.state==='chopping'||c.state==='mining'||c.state==='farming'||c.state==='fighting');
+  const spriteKey = c.job==='soldier' ? 'soldat' : 'colon';
+  const sprite = getSprite(ASSET_PATHS[spriteKey](state.race.id));
+  if(sprite){
+    const bob = walking ? Math.sin(c.anim)*2 : 0;
+    ctx.drawImage(sprite, sx-24, sy-40+bob, 48, 48);
+  } else {
+    const bodyColor = c.job==='soldier' ? '#8a3a3a' : '#c9b26a';
+    drawHumanoid(ctx, sx, sy, bodyColor, 1.6, walking? c.anim:0, acting? c.anim*2:0);
+  }
+  if(c.carrying>0){
+    ctx.fillStyle = c.carryType==='wood'?'#8a5a2a':(c.carryType==='stone'?'#888':'#6a9e3a');
+    ctx.fillRect(sx-4, sy-34, 8,6);
+  }
+  if(c.job==='soldier' && !sprite){
+    ctx.fillStyle='#ccc'; ctx.fillRect(sx+8, sy-30, 2, 12);
+  }
+  if(state.selectedColonist===state.colonists.indexOf(c)){
+    ctx.strokeStyle='#4ae08a'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.ellipse(sx,sy+8,10,4,0,0,7); ctx.stroke();
+  }
+  if(c.hp<c.maxhp) drawHpBar(sx,sy-36,22,c.hp,c.maxhp);
+}
+function drawPlayer(){
+  const p = state.player;
+  const sx = p.x - state.camera.x, sy = p.y - state.camera.y;
+  const sprite = getSprite(ASSET_PATHS.joueur(state.race.id));
+  if(sprite){
+    const bob = p.moving ? Math.sin(p.anim)*2 : 0;
+    ctx.drawImage(sprite, sx-28, sy-48+bob, 56, 56);
+  } else {
+    drawHumanoid(ctx, sx, sy, p.color, 1.9, p.moving? p.anim:0, p.atkTimer>0? p.anim*3:0);
+  }
+  if(p.hp<p.maxhp) drawHpBar(sx,sy-42,26,p.hp,p.maxhp);
+}
+function drawEnemy(e){
+  const sx = e.x - state.camera.x, sy = e.y - state.camera.y;
+  const enemyRace = e.kingdomRaceId || null;
+  const sprite = enemyRace ? getSprite(ASSET_PATHS.ennemi(enemyRace)) : null;
+  if(sprite){
+    const bob = Math.sin(e.anim)*2;
+    ctx.drawImage(sprite, sx-22, sy-38+bob, 44, 44);
+  } else {
+    ctx.save();
+    ctx.translate(sx,sy);
+    const bob = Math.sin(e.anim)*1.5;
+    ctx.fillStyle = e.kingdomColor || '#3a1a1a';
+    ctx.beginPath(); ctx.ellipse(0,-4+bob*0.2,9,11,0,0,7); ctx.fill();
+    ctx.fillStyle = '#e05a4a';
+    ctx.beginPath(); ctx.arc(-4,-8+bob*0.2,1.6,0,7); ctx.arc(4,-8+bob*0.2,1.6,0,7); ctx.fill();
+    ctx.fillStyle='#1a0a0a';
+    ctx.beginPath(); ctx.moveTo(-8,-14); ctx.lineTo(-4,-20); ctx.lineTo(-1,-14); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(8,-14); ctx.lineTo(4,-20); ctx.lineTo(1,-14); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  if(e.kingdomName){
+    ctx.fillStyle='#e8d9a8'; ctx.font='9px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(e.kingdomName.replace('Royaume ',''), sx, sy-28);
+  }
+  if(e.hp<e.maxhp) drawHpBar(sx,sy-24,20,e.hp,e.maxhp);
+  if(state.selectedEnemy===state.enemies.indexOf(e)){
+    ctx.strokeStyle='#e05a4a'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.ellipse(sx,sy+8,10,4,0,0,7); ctx.stroke();
+  }
+}
+
+/* ============================= INPUT ============================= */
+const keys = {};
+window.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()]=true; });
+window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
+
+canvas.addEventListener('click', e=>{
+  handleTap(e.clientX + state.camera.x, e.clientY + state.camera.y, false);
+});
+canvas.addEventListener('contextmenu', e=>{
+  e.preventDefault();
+  if(!state.running) return;
+  if(state.selectedColonist<0) return;
+  const wx = e.clientX + state.camera.x, wy = e.clientY + state.camera.y;
+  const c = state.colonists[state.selectedColonist];
+  c.manual = true; c.tx = wx; c.ty = wy; c.state='moving';
+});
+let touchStartPos = null;
+canvas.addEventListener('touchstart', e=>{
+  const t = e.touches[0];
+  touchStartPos = {x:t.clientX, y:t.clientY};
+}, {passive:true});
+canvas.addEventListener('touchend', e=>{
+  if(!touchStartPos) return;
+  const t = e.changedTouches[0];
+  const moved = Math.hypot(t.clientX-touchStartPos.x, t.clientY-touchStartPos.y);
+  touchStartPos = null;
+  if(moved>18) return; // c'était un glissement, pas un tap
+  handleTap(t.clientX + state.camera.x, t.clientY + state.camera.y, state.mobileMode==='order');
+});
+
+function handleTap(wx, wy, forceOrder){
+  if(!state.running) return;
+  if(state.placingBuilding){ tryPlaceBuilding(wx,wy); return; }
+
+  // ordre de déplacement mobile (équivalent clic droit)
+  if(forceOrder && state.selectedColonist>=0){
+    const c = state.colonists[state.selectedColonist];
+    c.manual = true; c.tx = wx; c.ty = wy; c.state='moving';
+    return;
+  }
+  // ennemi -> le joueur attaque
+  let eFound=-1;
+  state.enemies.forEach((e,i)=>{ if(Math.hypot(e.x-wx,e.y-wy)<18) eFound=i; });
+  if(eFound>=0){ state.player.attackTarget = eFound; state.selectedEnemy = eFound; return; }
+  // colon
+  let found=-1;
+  state.colonists.forEach((c,i)=>{ if(Math.hypot(c.x-wx,c.y-wy)<16) found=i; });
+  if(found>=0){ state.selectedColonist = found; showInfoColonist(found); return; }
+  // bâtiment
+  let bFound=-1;
+  state.buildings.forEach((b,i)=>{ if(Math.hypot(b.x-wx,b.y-wy)<22) bFound=i; });
+  if(bFound>=0){
+    if(state.selectedColonist>=0){
+      assignColonistToBuilding(state.selectedColonist, bFound);
+    }
+    showInfoBuilding(bFound);
+    return;
+  }
+  hideInfo();
+  state.selectedColonist=-1;
+  state.player.attackTarget=-1;
+}
+
+function tryPlaceBuilding(wx,wy){
+  const tx = Math.floor(wx/TILE), ty = Math.floor(wy/TILE);
+  if(tx<0||ty<0||tx>=MAP_W||ty>=MAP_H) return;
+  if(state.map[ty][tx]!==TILE_GRASS) return;
+  const bt = BUILD_TYPES[state.placingBuilding];
+  const hasTownHall = state.buildings.some(b=>b.type==='townhall');
+  if(!bt.isTownHall && !hasTownHall){ notify("Construis d'abord l'Hôtel de ville !"); return; }
+  if(bt.isTownHall && hasTownHall) return;
+  for(const [res,amt] of Object.entries(bt.cost)){
+    if((state.resources[res]||0) < amt) return;
+  }
+  for(const [res,amt] of Object.entries(bt.cost)){ state.resources[res]-=amt; }
+  const bx = tx*TILE+TILE/2, by = ty*TILE+TILE/2;
+  const building = {type:state.placingBuilding, x:bx, y:by, hp:bt.hp, maxhp:bt.hp, level:1};
+  state.buildings.push(building);
+  // auto-assign an idle colonist if job-producing building
+  if(bt.job){
+    const idle = state.colonists.find(c=>!c.job);
+    if(idle) assignColonistToBuilding(state.colonists.indexOf(idle), state.buildings.length-1);
+  }
+  state.placingBuilding=null;
+  document.querySelectorAll('.build-btn').forEach(x=>x.classList.remove('active'));
+  if(bt.isTownHall) buildBuildBar();
+  updateResourceUI();
+}
+function assignColonistToBuilding(ci, bi){
+  const c = state.colonists[ci]; const b = state.buildings[bi];
+  const bt = BUILD_TYPES[b.type];
+  c.job = bt.job; c.workplace = bi; c.state='idle'; c.manual=false; c.carrying=0;
+}
+function showInfoColonist(i){
+  const c = state.colonists[i];
+  document.getElementById('infoTitle').textContent = 'Colon';
+  document.getElementById('infoBody').innerHTML = `Métier : ${c.job?({lumberjack:'Bûcheron',miner:'Mineur',farmer:'Fermier',soldier:'Soldat'}[c.job]):'Sans emploi'}<br>État : ${c.state}<br>PV : ${Math.round(c.hp)}/${c.maxhp}<br><br><span style="color:#8a9086;">Clique sur un bâtiment pour l'y assigner. Clic droit (ou mode Ordre sur mobile) pour un déplacement manuel.</span>`;
+  document.getElementById('infoPanel').classList.add('show');
+}
+function showInfoBuilding(i){
+  const b = state.buildings[i]; const bt = BUILD_TYPES[b.type];
+  const workers = state.colonists.filter(c=>c.workplace===i).length;
+  document.getElementById('infoTitle').textContent = bt.label + (b.level>1? ' (Niv. '+b.level+')':'');
+  let html = `Travailleurs : ${workers}<br>`;
+  if(bt.isTownHall){
+    const cw = b.level*30, cs = b.level*15;
+    html += `Niveau : ${b.level}<br>PV : ${Math.round(b.hp)}/${b.maxhp}<br><br>
+      <button onclick="upgradeBuilding(${i})" style="width:100%;padding:8px;background:#c9b26a;color:#151d16;border:none;cursor:pointer;font-size:12px;">Améliorer (${cw} bois, ${cs} pierre)</button>`;
+  } else {
+    html += `<span style="color:#8a9086;">Sélectionne un colon puis clique ici pour l'assigner.</span>`;
+  }
+  document.getElementById('infoBody').innerHTML = html;
+  document.getElementById('infoPanel').classList.add('show');
+}
+function upgradeBuilding(i){
+  const b = state.buildings[i];
+  if(!b) return;
+  const cw = b.level*30, cs = b.level*15;
+  if((state.resources.wood||0)<cw || (state.resources.stone||0)<cs){ notify('Ressources insuffisantes pour améliorer.'); return; }
+  state.resources.wood -= cw; state.resources.stone -= cs;
+  b.level++;
+  b.maxhp += 50; b.hp = b.maxhp;
+  notify("L'Hôtel de ville est niveau "+b.level+" !");
+  updateResourceUI();
+  showInfoBuilding(i);
+}
+function hideInfo(){ document.getElementById('infoPanel').classList.remove('show'); }
+
+document.getElementById('menuBtnInGame').onclick = async ()=>{
+  const slot = state.charName || 'colonie';
+  const ok = await saveGame(slot);
+  state.running = false;
+  document.getElementById('btnDiplomacy').style.display='none';
+  document.getElementById('diploPanel').style.display='none';
+  showScreen('menu');
+};
+
+/* ============================= UI RESOURCES ============================= */
+function updateResourceUI(){
+  document.getElementById('woodCount').textContent = state.resources.wood|0;
+  document.getElementById('stoneCount').textContent = state.resources.stone|0;
+  document.getElementById('foodCount').textContent = state.resources.food|0;
+  const th = state.buildings.find(b=>b.type==='townhall');
+  const cap = 3 + state.buildings.filter(b=>b.type==='house').length*2 + (th? (th.level-1)*2:0);
+  document.getElementById('popCount').textContent = state.colonists.length+'/'+cap;
+  document.getElementById('playerHp').textContent = Math.round(state.player.hp)+'/'+state.player.maxhp;
+}
+
+/* ============================= DIPLOMATIE ============================= */
+const STATUS_LABEL = {guerre:'⚔ En guerre', neutre:'⚖ Neutre', allié:'🤝 Allié'};
+const STATUS_COLOR = {guerre:'#e05a4a', neutre:'#c9b26a', allié:'#4ae08a'};
+function renderDiplomacy(){
+  const list = document.getElementById('kingdomList');
+  list.innerHTML='';
+  state.kingdoms.forEach((k,i)=>{
+    const row = document.createElement('div');
+    row.className='kingdom-row';
+    const relPct = Math.max(0,Math.min(100,(k.relation+100)/200*100));
+    row.innerHTML = `
+      <div class="kingdom-swatch" style="background:${k.color};"></div>
+      <div class="kingdom-info">
+        <div class="kingdom-name">${k.name}</div>
+        <div class="kingdom-status" style="color:${STATUS_COLOR[k.status]};">${STATUS_LABEL[k.status]}</div>
+        <div class="relation-bar"><div class="relation-fill" style="width:${relPct}%;background:${STATUS_COLOR[k.status]};"></div></div>
+      </div>
+      <div class="kingdom-actions">
+        ${k.status!=='allié' ? `<button onclick="proposeAlliance(${i})">Proposer alliance</button>`:''}
+        ${k.status!=='guerre' ? `<button onclick="declareWar(${i})">Déclarer la guerre</button>`:`<button onclick="proposePeace(${i})">Proposer la paix</button>`}
+        <button onclick="sendGift(${i})">Envoyer un cadeau (15🪵 10🪨)</button>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+function proposeAlliance(i){
+  const k = state.kingdoms[i];
+  if(k.status==='guerre'){ notify(k.name+" refuse : vous êtes en guerre !"); return; }
+  if(k.relation>=40){ k.status='allié'; notify(k.name+' accepte votre alliance !'); }
+  else { k.relation+=8; notify(k.name+" hésite encore à s'allier avec vous."); }
+  renderDiplomacy();
+}
+function declareWar(i){
+  const k = state.kingdoms[i];
+  k.status='guerre'; k.relation -= 30; k.timer = 15+Math.random()*15;
+  notify('Vous avez déclaré la guerre au '+k.name+' !');
+  renderDiplomacy();
+}
+function proposePeace(i){
+  const k = state.kingdoms[i];
+  const cost = {wood:25, stone:15};
+  if((state.resources.wood||0)<cost.wood || (state.resources.stone||0)<cost.stone){ notify('Ressources insuffisantes pour négocier la paix.'); return; }
+  state.resources.wood -= cost.wood; state.resources.stone -= cost.stone;
+  if(k.relation>=-40){ k.status='neutre'; notify('La paix est signée avec le '+k.name+'.'); }
+  else { k.relation += 15; notify(k.name+' refuse la paix pour le moment.'); }
+  updateResourceUI();
+  renderDiplomacy();
+}
+function sendGift(i){
+  const k = state.kingdoms[i];
+  const cost = {wood:15, stone:10};
+  if((state.resources.wood||0)<cost.wood || (state.resources.stone||0)<cost.stone){ notify('Ressources insuffisantes pour ce cadeau.'); return; }
+  state.resources.wood -= cost.wood; state.resources.stone -= cost.stone;
+  k.relation = Math.min(100, k.relation+15);
+  notify(k.name+' apprécie votre geste.');
+  updateResourceUI();
+  renderDiplomacy();
+}
+document.getElementById('btnDiplomacy').onclick = ()=>{ renderDiplomacy(); document.getElementById('diploPanel').style.display='flex'; };
+document.getElementById('btnCloseDiplo').onclick = ()=>{ document.getElementById('diploPanel').style.display='none'; };
+
+function updateKingdoms(dt){
+  state.kingdoms.forEach(k=>{
+    if(k.status==='guerre') k.relation -= 0.03*dt*4;
+    else if(k.status==='allié') k.relation = Math.min(100, k.relation + 0.01*dt*4);
+    else k.relation += (k.relation<10? 0.005:-0.002)*dt*4;
+    k.relation = Math.max(-100, Math.min(100, k.relation));
+
+    k.timer -= dt;
+    if(k.status==='guerre' && k.timer<=0){
+      k.timer = 35+Math.random()*25;
+      spawnEnemy(k);
+      notify('Des raiders du '+k.name+' approchent !');
+    }
+    if(k.status==='allié' && k.timer<=0){
+      k.timer = 90+Math.random()*60;
+      if(Math.random()<0.7){
+        const gw = 10+Math.floor(Math.random()*15);
+        state.resources.wood += gw;
+        notify(k.name+' vous envoie '+gw+' bois en soutien.');
+        updateResourceUI();
+      }
+    }
+  });
+}
+
+function findNearestResourceTile(cx,cy,type,radius){
+  let best=null, bestD=Infinity;
+  const tileType = type==='wood'?TILE_FOREST:TILE_STONE;
+  const tcx = Math.floor(cx/TILE), tcy = Math.floor(cy/TILE);
+  for(let y=Math.max(0,tcy-radius); y<Math.min(MAP_H,tcy+radius); y++){
+    for(let x=Math.max(0,tcx-radius); x<Math.min(MAP_W,tcx+radius); x++){
+      if(state.map[y][x]===tileType && state.resAmt[y][x]>0){
+        const d = Math.hypot(x-tcx,y-tcy);
+        if(d<bestD){ bestD=d; best={x:x*TILE+TILE/2,y:y*TILE+TILE/2, tx:x, ty:y}; }
+      }
+    }
+  }
+  return best;
+}
+
+function updateColonist(c, dt){
+  c.anim += dt*6;
+  if(c.manual){
+    moveToward(c, c.tx, c.ty, dt);
+    if(Math.hypot(c.x-c.tx,c.y-c.ty)<3){ c.manual=false; c.state='idle'; }
+    return;
+  }
+  if(!c.job){ c.state='idle'; return; }
+  const building = state.buildings[c.workplace];
+  if(!building){ c.job=null; c.state='idle'; return; }
+
+  if(c.job==='farmer'){ updateFarmer(c,building,dt); return; }
+  if(c.job==='soldier'){ updateSoldier(c,building,dt); return; }
+
+  const resType = c.job==='lumberjack'?'wood':'stone';
+
+  switch(c.state){
+    case 'idle': {
+      if(c.carrying>0){ c.state='returning'; break; }
+      const tile = findNearestResourceTile(building.x, building.y, resType, 9);
+      if(tile){ c.target=tile; c.tx=tile.x; c.ty=tile.y; c.state='moving'; }
+      break;
+    }
+    case 'moving': {
+      moveToward(c, c.tx, c.ty, dt);
+      if(Math.hypot(c.x-c.tx,c.y-c.ty)<4){
+        c.state = c.job==='lumberjack'?'chopping':'mining';
+        c.timer=0;
+      }
+      break;
+    }
+    case 'chopping': case 'mining': {
+      c.timer += dt;
+      if(c.timer>1.6){
+        const t = c.target;
+        if(t && state.resAmt[t.ty][t.tx]>0){
+          state.resAmt[t.ty][t.tx]--;
+          if(state.resAmt[t.ty][t.tx]<=0){
+            state.map[t.ty][t.tx] = TILE_GRASS;
+          }
+          c.carrying = 1; c.carryType = resType;
+        }
+        c.state='returning'; c.tx=building.x; c.ty=building.y;
+      }
+      break;
+    }
+    case 'returning': {
+      moveToward(c, building.x, building.y, dt);
+      if(Math.hypot(c.x-building.x,c.y-building.y)<6){
+        state.resources[c.carryType] = (state.resources[c.carryType]||0) + c.carrying*3;
+        c.carrying=0;
+        c.state='idle';
+        updateResourceUI();
+      }
+      break;
+    }
+  }
+}
+function updateFarmer(c,building,dt){
+  switch(c.state){
+    case 'idle': c.state='farming'; c.timer=0; c.tx=building.x; c.ty=building.y; break;
+    case 'farming':
+      moveToward(c, building.x, building.y, dt);
+      if(Math.hypot(c.x-building.x,c.y-building.y)<6){
+        c.timer += dt;
+        if(c.timer>2.4){
+          state.resources.food = (state.resources.food||0) + 4;
+          c.timer=0;
+          updateResourceUI();
+        }
+      }
+      break;
+    default: c.state='idle';
+  }
+}
+function updateSoldier(c,building,dt){
+  // find nearby enemy
+  if(c.state!=='fighting' && c.state!=='engaging'){
+    let nearest=-1, bd=170;
+    state.enemies.forEach((e,i)=>{ const d=Math.hypot(e.x-c.x,e.y-c.y); if(d<bd){ bd=d; nearest=i; } });
+    if(nearest>=0){ c.state='engaging'; c.targetEnemy=nearest; }
+    else { c.state='idle'; c.tx=building.x; c.ty=building.y; moveToward(c,building.x,building.y,dt); }
+    return;
+  }
+  const e = state.enemies[c.targetEnemy];
+  if(!e){ c.state='idle'; return; }
+  const d = Math.hypot(e.x-c.x, e.y-c.y);
+  if(d>18){ c.state='engaging'; c.tx=e.x; c.ty=e.y; moveToward(c,e.x,e.y,dt); }
+  else{
+    c.state='fighting'; c.timer=(c.timer||0)+dt;
+    if(c.timer>0.9){
+      c.timer=0;
+      e.hp -= c.atk;
+      c.hp -= e.atk;
+      if(e.hp<=0){ state.enemies.splice(c.targetEnemy,1); c.state='idle'; }
+      if(c.hp<=0){ const idx=state.colonists.indexOf(c); if(idx>=0) state.colonists.splice(idx,1); updateResourceUI(); }
+    }
+  }
+}
+function spawnEnemy(kingdom){
+  const cx = MAP_W/2, cy = MAP_H/2;
+  let ex,ey,tries=0;
+  do{
+    const edge = Math.floor(Math.random()*4);
+    if(edge===0){ ex=Math.random()*MAP_W; ey=2; }
+    else if(edge===1){ ex=Math.random()*MAP_W; ey=MAP_H-2; }
+    else if(edge===2){ ex=2; ey=Math.random()*MAP_H; }
+    else { ex=MAP_W-2; ey=Math.random()*MAP_H; }
+    tries++;
+  } while(state.map[Math.floor(ey)] && state.map[Math.floor(ey)][Math.floor(ex)]===TILE_WATER && tries<20);
+  state.enemies.push({x:ex*TILE, y:ey*TILE, hp:22, maxhp:22, atk:3, anim:Math.random()*10, state:'moving',
+    kingdomColor: kingdom? kingdom.color : null, kingdomName: kingdom? kingdom.name : null, kingdomRaceId: kingdom? kingdom.id : null});
+}
+function updateEnemies(dt){
+  state.enemies.slice().forEach(e=>{
+    if(!state.enemies.includes(e)) return;
+    e.anim += dt*6;
+    let target=null, bd=Infinity, targetType=null;
+    state.buildings.forEach(b=>{ const d=Math.hypot(b.x-e.x,b.y-e.y); if(d<bd){ bd=d; target=b; targetType='building'; } });
+    if(Math.hypot(state.player.x-e.x,state.player.y-e.y) < bd){ bd=Math.hypot(state.player.x-e.x,state.player.y-e.y); target=state.player; targetType='player'; }
+    state.colonists.forEach(c=>{ if(c.job!=='soldier'){ const d=Math.hypot(c.x-e.x,c.y-e.y); if(d<bd){ bd=d; target=c; targetType='colonist'; } } });
+    if(!target) return;
+    if(bd>24){
+      moveToward(e, target.x, target.y, dt*0.7);
+    } else {
+      e.timer=(e.timer||0)+dt;
+      if(e.timer>1){
+        e.timer=0;
+        target.hp -= e.atk;
+        if(targetType==='building' && target.hp<=0){
+          const idx=state.buildings.indexOf(target);
+          state.colonists.forEach(c=>{ if(c.workplace===idx){ c.job=null; c.workplace=-1; } });
+          state.buildings.splice(idx,1);
+          notify('Un bâtiment a été détruit !');
+        } else if(targetType==='colonist' && target.hp<=0){
+          const idx=state.colonists.indexOf(target);
+          if(idx>=0) state.colonists.splice(idx,1);
+          notify('Un colon a été tué !');
+          updateResourceUI();
+        } else if(targetType==='player' && target.hp<=0){
+          target.hp = target.maxhp;
+          notify('Tu as été mis à terre et ramené à la colonie !');
+          const th = state.buildings.find(b=>b.type==='townhall');
+          if(th){ state.player.x = th.x; state.player.y = th.y; }
+        }
+      }
+    }
+  });
+}
+function updateFoodAndPop(dt){
+  state.foodTimer += dt;
+  if(state.foodTimer>6){
+    state.foodTimer=0;
+    const consumption = Math.max(1, Math.round(state.colonists.length*0.6));
+    state.resources.food -= consumption;
+    if(state.resources.food<0) state.resources.food=0;
+    updateResourceUI();
+  }
+  state.popTimer += dt;
+  if(state.popTimer>18){
+    state.popTimer=0;
+    const th = state.buildings.find(b=>b.type==='townhall');
+    const cap = 3 + state.buildings.filter(b=>b.type==='house').length*2 + (th? (th.level-1)*2:0);
+    if(state.resources.food>=12 && state.colonists.length<cap && th){
+      state.resources.food -= 12;
+      state.colonists.push(makeColonist(th.x+(Math.random()*20-10), th.y+(Math.random()*20-10)));
+      notify('Un nouveau colon a rejoint la colonie !');
+      updateResourceUI();
+    }
+  }
+  state.enemyTimer -= dt;
+  if(state.enemyTimer<=0){
+    state.enemyTimer = 30 + Math.random()*20;
+    spawnEnemy();
+  }
+  if(state.notifTimer>0){
+    state.notifTimer -= dt;
+    const box = document.getElementById('notifBox');
+    box.textContent = state.notif; box.style.display='block';
+    if(state.notifTimer<=0) box.style.display='none';
+  }
+}
+function buildMinimapBase(){
+  const base = document.createElement('canvas');
+  base.width = MAP_W; base.height = MAP_H;
+  const bctx = base.getContext('2d');
+  for(let y=0;y<MAP_H;y++){
+    for(let x=0;x<MAP_W;x++){
+      bctx.fillStyle = TILE_COLORS[state.map[y][x]];
+      bctx.fillRect(x,y,1,1);
+    }
+  }
+  state.minimapBase = base;
+}
+function drawMinimap(){
+  const mm = document.getElementById('minimap');
+  if(!mm || !state.minimapBase) return;
+  const mctx = mm.getContext('2d');
+  mctx.imageSmoothingEnabled = false;
+  mctx.clearRect(0,0,mm.width,mm.height);
+  mctx.drawImage(state.minimapBase,0,0,mm.width,mm.height);
+  const sx = mm.width/MAP_W, sy = mm.height/MAP_H;
+  // territoire de la colonie : halo autour des bâtiments, teinté de la couleur du peuple
+  if(state.buildings.length){
+    mctx.fillStyle = state.race.color + '33';
+    state.buildings.forEach(b=>{
+      mctx.beginPath();
+      mctx.arc((b.x/TILE)*sx, (b.y/TILE)*sy, 14*Math.min(sx,sy), 0, 7);
+      mctx.fill();
+    });
+  }
+  state.buildings.forEach(b=>{
+    mctx.fillStyle = state.race.color;
+    mctx.fillRect((b.x/TILE)*sx-1.5, (b.y/TILE)*sy-1.5, 3,3);
+  });
+  state.colonists.forEach(c=>{
+    mctx.fillStyle = '#e8d9a8';
+    mctx.fillRect((c.x/TILE)*sx-1, (c.y/TILE)*sy-1, 2,2);
+  });
+  state.enemies.forEach(e=>{
+    mctx.fillStyle = '#e05a4a';
+    mctx.fillRect((e.x/TILE)*sx-1, (e.y/TILE)*sy-1, 2,2);
+  });
+  mctx.fillStyle = '#4ae0d0';
+  mctx.beginPath(); mctx.arc((state.player.x/TILE)*sx, (state.player.y/TILE)*sy, 2.4, 0, 7); mctx.fill();
+  // drapeaux des royaumes voisins (direction symbolique)
+  state.kingdoms.forEach(k=>{
+    const fx = mm.width/2 + Math.cos(k.angle)*(mm.width/2-6);
+    const fy = mm.height/2 + Math.sin(k.angle)*(mm.height/2-6);
+    mctx.fillStyle = k.color;
+    mctx.beginPath(); mctx.arc(fx,fy,3,0,7); mctx.fill();
+    mctx.strokeStyle = STATUS_COLOR[k.status]; mctx.lineWidth=1;
+    mctx.beginPath(); mctx.arc(fx,fy,4.5,0,7); mctx.stroke();
+  });
+  // vue caméra
+  mctx.strokeStyle='#fff6'; mctx.lineWidth=1;
+  mctx.strokeRect((state.camera.x/TILE)*sx, (state.camera.y/TILE)*sy, (canvas.width/TILE)*sx, (canvas.height/TILE)*sy);
+}
+
+const DAY_LEN=600, NIGHT_LEN=600, TRANS=70, CYCLE=DAY_LEN+NIGHT_LEN;
+function updateDayNight(dt){
+  state.dayTime = (state.dayTime + dt) % CYCLE;
+  const t = state.dayTime;
+  let darkness = 0;
+  if(t < DAY_LEN-TRANS) darkness = 0;
+  else if(t < DAY_LEN+TRANS) darkness = (t-(DAY_LEN-TRANS))/(2*TRANS);
+  else if(t < CYCLE-TRANS) darkness = 1;
+  else darkness = 1 - (t-(CYCLE-TRANS))/TRANS;
+  state.darkness = Math.max(0, Math.min(1,darkness)) * 0.62;
+  const isDay = t < DAY_LEN;
+  const label = document.getElementById('dayNightLabel');
+  if(label){
+    const remain = Math.ceil((isDay? DAY_LEN-t : CYCLE-t)/60*10)/10;
+    label.textContent = (isDay? '☀ Jour':'🌙 Nuit');
+  }
+}
+
+function moveToward(c,tx,ty,dt){
+  const dx=tx-c.x, dy=ty-c.y, d=Math.hypot(dx,dy);
+  const speed=48;
+  if(d>1){ c.x += dx/d*speed*dt; c.y += dy/d*speed*dt; c.dir=Math.atan2(dy,dx); }
+}
+
+function updatePlayer(dt){
+  const p = state.player;
+  let dx=0,dy=0;
+  if(keys['z']||keys['arrowup']) dy-=1;
+  if(keys['s']||keys['arrowdown']) dy+=1;
+  if(keys['q']||keys['arrowleft']) dx-=1;
+  if(keys['d']||keys['arrowright']) dx+=1;
+  if(state.joystick.active){ dx += state.joystick.x; dy += state.joystick.y; }
+  const moveLen = Math.hypot(dx,dy);
+  p.moving = moveLen>0.15;
+
+  // combat au corps à corps
+  if(p.attackTarget>=0){
+    const e = state.enemies[p.attackTarget];
+    if(!e){ p.attackTarget=-1; }
+    else{
+      const d = Math.hypot(e.x-p.x, e.y-p.y);
+      if(d>22){
+        const dxE=e.x-p.x, dyE=e.y-p.y;
+        p.x += dxE/d*90*dt; p.y += dyE/d*90*dt;
+        p.moving = true; p.anim=(p.anim||0)+dt*7;
+      } else {
+        p.atkTimer = (p.atkTimer||0)+dt;
+        if(p.atkTimer>0.7){
+          p.atkTimer=0;
+          e.hp -= p.atk;
+          if(e.hp<=0){ const idx=state.enemies.indexOf(e); if(idx>=0) state.enemies.splice(idx,1); p.attackTarget=-1; }
+        }
+      }
+    }
+  } else if(p.moving){
+    p.x += dx/moveLen*80*dt; p.y += dy/moveLen*80*dt;
+    p.anim = (p.anim||0) + dt*7;
+    p.atkTimer=0;
+  }
+  p.x = Math.max(TILE, Math.min(MAP_W*TILE-TILE, p.x));
+  p.y = Math.max(TILE, Math.min(MAP_H*TILE-TILE, p.y));
+  state.camera.x += (p.x - canvas.width/2 - state.camera.x)*0.12;
+  state.camera.y += (p.y - canvas.height/2 - state.camera.y)*0.12;
+}
+
+/* ---------- Joystick tactile ---------- */
+const joyBase = document.getElementById('joystickBase');
+const joyStick = document.getElementById('joystickStick');
+let joyTouchId = null;
+function joyReset(){ state.joystick.active=false; state.joystick.x=0; state.joystick.y=0; joyStick.style.left='32px'; joyStick.style.top='32px'; }
+joyBase.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  const t = e.changedTouches[0]; joyTouchId = t.identifier;
+  state.joystick.active = true;
+}, {passive:false});
+joyBase.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier!==joyTouchId) continue;
+    const rect = joyBase.getBoundingClientRect();
+    const cx = rect.left+rect.width/2, cy = rect.top+rect.height/2;
+    let dx=(t.clientX-cx)/(rect.width/2), dy=(t.clientY-cy)/(rect.height/2);
+    const len = Math.hypot(dx,dy);
+    if(len>1){ dx/=len; dy/=len; }
+    state.joystick.x=dx; state.joystick.y=dy;
+    joyStick.style.left = (32+dx*30)+'px'; joyStick.style.top = (32+dy*30)+'px';
+  }
+}, {passive:false});
+['touchend','touchcancel'].forEach(evt=>{
+  joyBase.addEventListener(evt, e=>{
+    for(const t of e.changedTouches){ if(t.identifier===joyTouchId){ joyTouchId=null; joyReset(); } }
+  });
+});
+
+/* ---------- Mode tactile : sélection vs ordre ---------- */
+const btnModeToggle = document.getElementById('btnModeToggle');
+btnModeToggle.onclick = ()=>{
+  state.mobileMode = state.mobileMode==='select' ? 'order' : 'select';
+  btnModeToggle.textContent = 'Mode : '+(state.mobileMode==='select'?'Sélection':'Ordre ↦');
+  btnModeToggle.classList.toggle('order-mode', state.mobileMode==='order');
+};
+
+/* ============================= BOUCLE PRINCIPALE ============================= */
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(0.05, (now-last)/1000); last=now;
+  if(state.running){
+    updatePlayer(dt);
+    state.colonists.forEach(c=>updateColonist(c,dt));
+    updateEnemies(dt);
+    updateFoodAndPop(dt);
+    updateKingdoms(dt);
+    updateDayNight(dt);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawMap();
+    const drawList = [];
+    state.buildings.forEach(b=> drawList.push({y:b.y, type:'b', ref:b}));
+    state.colonists.forEach(c=> drawList.push({y:c.y, type:'c', ref:c}));
+    state.enemies.forEach(e=> drawList.push({y:e.y, type:'e', ref:e}));
+    drawList.push({y:state.player.y, type:'p', ref:state.player});
+    drawList.sort((a,b)=> a.y-b.y);
+    drawList.forEach(o=>{
+      if(o.type==='b') drawBuilding(o.ref);
+      else if(o.type==='c') drawColonist(o.ref);
+      else if(o.type==='e') drawEnemy(o.ref);
+      else drawPlayer();
+    });
+    if(state.darkness>0){
+      ctx.fillStyle = `rgba(6,10,28,${state.darkness})`;
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+    drawMinimap();
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* pas grave si absent */ });
+  });
+}
+</script>
+</body>
+</html>

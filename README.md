@@ -1,6 +1,6 @@
 # TLM Games — bibliothèque de jeux avec comptes &amp; synchronisation
 
-Boutique + bibliothèque façon Steam/Roblox : on crée un compte, on ajoute des
+Boutique + bibliothèque: on crée un compte, on ajoute des
 jeux à sa bibliothèque, et elle se **synchronise automatiquement** sur tous
 les appareils où l'on se connecte. Sans compte, ça fonctionne quand même en
 mode "invité" (stockage local au navigateur uniquement).

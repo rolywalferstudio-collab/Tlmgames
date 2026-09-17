@@ -6,51 +6,52 @@ export class TLMEngine {
     constructor(container) {
         this.container = container;
 
-        // Scène & Caméra
+        // Scène & Ambiance Blocks Beach
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x68b0d8);
+        this.scene.background = new THREE.Color(0x74b9ff); // Ciel bleu turquoise cartoon
+        this.scene.fog = new THREE.FogExp2(0x74b9ff, 0.015);
 
-        this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-        this.camera.position.set(0, 10, 20);
+        this.camera = new THREE.PerspectiveCamera(65, container.clientWidth / container.clientHeight, 0.1, 1000);
+        this.camera.position.set(0, 12, 22);
 
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         this.renderer.setSize(container.clientWidth, container.clientHeight);
         this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.container.appendChild(this.renderer.domElement);
 
-        // Physique
-        this.world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
+        this.world = new CANNON.World({ gravity: new CANNON.Vec3(0, -18, 0) }); // Pesanteur arcade
 
-        // Utilitaires
         this.gltfLoader = new GLTFLoader();
-        this.textureLoader = new THREE.TextureLoader();
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
         this.gameObjects = new Map();
         this.selectedObject = null;
         this.onSelectCallback = null;
 
-        // Joueur
         this.player = {
             isPlaying: false,
             mesh: null,
             body: null,
-            speed: 8,
-            jumpForce: 5,
+            speed: 10,
+            jumpForce: 8,
             keys: { forward: false, backward: false, left: false, right: false, jump: false }
         };
 
-        this.initLights();
+        this.initEnvironment();
         this.initEvents();
     }
 
-    initLights() {
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        this.scene.add(ambientLight);
+    initEnvironment() {
+        // Éclairage type "Sunlight Cartoon"
+        const ambient = new THREE.AmbientLight(0xffffff, 0.75);
+        this.scene.add(ambient);
 
-        const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-        sun.position.set(20, 40, 20);
+        const sun = new THREE.DirectionalLight(0xfffaed, 1.2);
+        sun.position.set(30, 50, 20);
         sun.castShadow = true;
+        sun.shadow.mapSize.width = 2048;
+        sun.shadow.mapSize.height = 2048;
         this.scene.add(sun);
     }
 
@@ -61,50 +62,55 @@ export class TLMEngine {
         window.addEventListener('keyup', (e) => this.handleKey(e, false));
     }
 
-    // Création de matériaux Toon (style cartoon)
-    createToonMaterial(color = 0x00ff00, textureUrl = null) {
-        const colors = new Uint8Array([0, 128, 255]);
+    // Matériau Toon / Blocks Beach (ombrage par paliers)
+    createBlocksBeachMaterial(color = 0x55efc4) {
+        const colors = new Uint8Array([100, 190, 255]);
         const gradientMap = new THREE.DataTexture(colors, 3, 1, THREE.RedFormat);
         gradientMap.needsUpdate = true;
 
-        const matParams = {
+        return new THREE.MeshToonMaterial({
             color: color,
-            gradientMap: gradientMap
-        };
-
-        if (textureUrl) {
-            matParams.map = this.textureLoader.load(textureUrl);
-        }
-
-        return new THREE.MeshToonMaterial(matParams);
+            gradientMap: gradientMap,
+            wireframe: false
+        });
     }
 
+    // Création de blocs personnalisés (Cube, Rampe, Cylindre, Dalle)
     createPart(params = {}) {
         const {
             id = crypto.randomUUID(),
-            type = 'box',
+            shapeType = 'box',
             size = [2, 2, 2],
             position = [0, 1, 0],
             rotation = [0, 0, 0],
-            color = 0x00ff00,
+            color = 0xfdcb6e,
             anchored = false
         } = params;
 
         let geometry;
         let shape;
 
-        if (type === 'sphere') {
-            geometry = new THREE.SphereGeometry(size[0] / 2, 32, 32);
-            shape = new CANNON.Sphere(size[0] / 2);
-        } else if (type === 'ramp') {
-            geometry = new THREE.CylinderGeometry(0, size[0], size[1], 4);
-            shape = new CANNON.Box(new CANNON.Vec3(size[0] / 2, size[1] / 2, size[2] / 2));
-        } else {
-            geometry = new THREE.BoxGeometry(...size);
-            shape = new CANNON.Box(new CANNON.Vec3(size[0] / 2, size[1] / 2, size[2] / 2));
+        switch (shapeType) {
+            case 'cylinder':
+                geometry = new THREE.CylinderGeometry(size[0]/2, size[0]/2, size[1], 16);
+                shape = new CANNON.Cylinder(size[0]/2, size[0]/2, size[1], 16);
+                break;
+            case 'slab':
+                geometry = new THREE.BoxGeometry(size[0], 0.5, size[2]);
+                shape = new CANNON.Box(new CANNON.Vec3(size[0]/2, 0.25, size[2]/2));
+                break;
+            case 'sphere':
+                geometry = new THREE.SphereGeometry(size[0]/2, 16, 16);
+                shape = new CANNON.Sphere(size[0]/2);
+                break;
+            case 'box':
+            default:
+                geometry = new THREE.BoxGeometry(...size);
+                shape = new CANNON.Box(new CANNON.Vec3(size[0]/2, size[1]/2, size[2]/2));
+                break;
         }
 
-        const material = this.createToonMaterial(color);
+        const material = this.createBlocksBeachMaterial(color);
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(...position);
         mesh.rotation.set(...rotation);
@@ -119,7 +125,7 @@ export class TLMEngine {
         body.addShape(shape);
         this.world.addBody(body);
 
-        const objectData = { id, mesh, body, anchored, script: '' };
+        const objectData = { id, shapeType, mesh, body, anchored, script: '' };
         this.gameObjects.set(id, objectData);
 
         return objectData;
@@ -138,21 +144,17 @@ export class TLMEngine {
             });
 
             this.scene.add(model);
-
             const id = crypto.randomUUID();
             const shape = new CANNON.Box(new CANNON.Vec3(1, 1, 1));
             const body = new CANNON.Body({ mass: 0, position: new CANNON.Vec3(...position) });
             body.addShape(shape);
             this.world.addBody(body);
 
-            const objectData = { id, mesh: model, body, anchored: true, isModel: true, script: '' };
-            this.gameObjects.set(id, objectData);
+            this.gameObjects.set(id, { id, mesh: model, body, anchored: true, isModel: true, script: '' });
         });
     }
 
-    onSelect(callback) {
-        this.onSelectCallback = callback;
-    }
+    onSelect(callback) { this.onSelectCallback = callback; }
 
     onPointerDown(event) {
         if (this.player.isPlaying) return;
@@ -191,7 +193,7 @@ export class TLMEngine {
         if (id && this.gameObjects.has(id)) {
             this.selectedObject = this.gameObjects.get(id);
             if (this.selectedObject.mesh.material) {
-                this.selectedObject.mesh.material.emissive?.setHex(0x444444);
+                this.selectedObject.mesh.material.emissive?.setHex(0x222222);
             }
             if (this.onSelectCallback) this.onSelectCallback(this.selectedObject);
         } else {
@@ -214,9 +216,6 @@ export class TLMEngine {
             const axis = prop.split('.')[1];
             obj.mesh.position[axis] = parseFloat(value);
             obj.body.position[axis] = parseFloat(value);
-        } else if (prop.startsWith('rotation.')) {
-            const axis = prop.split('.')[1];
-            obj.mesh.rotation[axis] = THREE.MathUtils.degToRad(parseFloat(value));
         } else if (prop.startsWith('scale.')) {
             const axis = prop.split('.')[1];
             obj.mesh.scale[axis] = parseFloat(value);
@@ -247,19 +246,13 @@ export class TLMEngine {
 
         if (this.player.isPlaying) {
             this.selectObject(null);
-
-            const geometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
-            const material = this.createToonMaterial(0xff0000);
+            const geometry = new THREE.CapsuleGeometry(0.6, 1.2, 4, 8);
+            const material = this.createBlocksBeachMaterial(0xff7675);
             this.player.mesh = new THREE.Mesh(geometry, material);
-            this.player.mesh.castShadow = true;
             this.scene.add(this.player.mesh);
 
-            const shape = new CANNON.Sphere(0.5);
-            this.player.body = new CANNON.Body({
-                mass: 70,
-                position: new CANNON.Vec3(0, 5, 0),
-                fixedRotation: true
-            });
+            const shape = new CANNON.Sphere(0.6);
+            this.player.body = new CANNON.Body({ mass: 70, position: new CANNON.Vec3(0, 6, 0), fixedRotation: true });
             this.player.body.addShape(shape);
             this.world.addBody(this.player.body);
         } else {
@@ -267,8 +260,7 @@ export class TLMEngine {
             if (this.player.body) this.world.removeBody(this.player.body);
             this.player.mesh = null;
             this.player.body = null;
-
-            this.camera.position.set(0, 10, 20);
+            this.camera.position.set(0, 12, 22);
             this.camera.lookAt(0, 0, 0);
         }
 
@@ -288,17 +280,12 @@ export class TLMEngine {
         this.player.body.velocity.x = vector.x * this.player.speed;
         this.player.body.velocity.z = vector.z * this.player.speed;
 
-        if (this.player.keys.jump && Math.abs(this.player.body.velocity.y) < 0.05) {
+        if (this.player.keys.jump && Math.abs(this.player.body.velocity.y) < 0.1) {
             this.player.body.velocity.y = this.player.jumpForce;
         }
 
         this.player.mesh.position.copy(this.player.body.position);
-
-        this.camera.position.set(
-            this.player.mesh.position.x,
-            this.player.mesh.position.y + 4,
-            this.player.mesh.position.z + 8
-        );
+        this.camera.position.set(this.player.mesh.position.x, this.player.mesh.position.y + 5, this.player.mesh.position.z + 10);
         this.camera.lookAt(this.player.mesh.position);
     }
 
@@ -313,9 +300,7 @@ export class TLMEngine {
                 const dt = (time - lastTime) / 1000;
                 this.world.step(timeStep, dt);
 
-                if (this.player.isPlaying) {
-                    this.updatePlayer();
-                }
+                if (this.player.isPlaying) this.updatePlayer();
 
                 for (const obj of this.gameObjects.values()) {
                     if (!obj.anchored && obj.body) {
@@ -324,11 +309,9 @@ export class TLMEngine {
                     }
                 }
             }
-
             lastTime = time;
             this.renderer.render(this.scene, this.camera);
         };
-
         animate();
     }
 
@@ -337,14 +320,14 @@ export class TLMEngine {
         for (const [id, obj] of this.gameObjects.entries()) {
             data.push({
                 id,
+                shapeType: obj.shapeType || 'box',
                 position: [obj.mesh.position.x, obj.mesh.position.y, obj.mesh.position.z],
-                rotation: [obj.mesh.rotation.x, obj.mesh.rotation.y, obj.mesh.rotation.z],
                 color: obj.mesh.material?.color ? obj.mesh.material.color.getHex() : 0xffffff,
                 anchored: obj.anchored,
                 script: obj.script
             });
         }
-        return JSON.stringify(data);
+        return data;
     }
 
     onWindowResize() {
@@ -352,4 +335,4 @@ export class TLMEngine {
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
     }
-          }
+    }

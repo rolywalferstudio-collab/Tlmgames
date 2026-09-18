@@ -13,20 +13,20 @@ const { readDB, writeDB } = require("./db");
 const TEMPLATES = require("./templates");
 
 // ---------------------------------------------------------------------
-// CONFIGURATION DE LA BASE DE DONNÉES SUPABASE
+// CONFIGURATION SUPABASE
 // ---------------------------------------------------------------------
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://TON_PROJET.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://aeippkhuawruinlkthmc.supabase.co";
 const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || "";
-const supabase = (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("TON_PROJET"))
+const supabase = (SUPABASE_URL && SUPABASE_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
 if (!supabase) {
-  console.warn("⚠️  Supabase n'est pas encore configuré dans le fichier .env (SUPABASE_URL et SUPABASE_KEY).");
+  console.warn("⚠️ Supabase n'est pas complètement configuré dans le fichier .env (SUPABASE_KEY manquante).");
 }
 
 // ---------------------------------------------------------------------
-// GESTION DES DOSSIERS ET FICHIERS STATIQUES (Compatible Render & Local)
+// DÉTECTION DU DOSSIER PUBLIC (Fix ENOENT Render)
 // ---------------------------------------------------------------------
 let PUBLIC_DIR = path.join(__dirname, "..", "public");
 if (!fs.existsSync(PUBLIC_DIR)) {
@@ -39,7 +39,7 @@ fs.mkdirSync(COMMUNITY_DIR, { recursive: true });
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15 Mo max par jeu importé
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15 Mo max
   fileFilter: (req, file, cb) => {
     if (!file.originalname.toLowerCase().endsWith(".zip")) {
       return cb(new Error("Seuls les fichiers .zip sont acceptés."));
@@ -76,10 +76,8 @@ const TOKEN_TTL = "30d";
 
 if (!JWT_SECRET || JWT_SECRET === "change_moi_avec_une_vraie_cle_secrete_aleatoire") {
   console.warn(
-    "\n⚠️  JWT_SECRET n'est pas défini (ou utilise encore la valeur d'exemple).\n" +
-      "   Une clé temporaire aléatoire va être utilisée pour cette exécution,\n" +
-      "   ce qui déconnectera tout le monde à chaque redémarrage du serveur.\n" +
-      "   Définis un vrai JWT_SECRET dans un fichier .env avant la mise en production.\n"
+    "\n⚠️ JWT_SECRET n'est pas défini (ou utilise encore la valeur d'exemple).\n" +
+      "   Une clé temporaire aléatoire va être utilisée pour cette exécution.\n"
   );
 }
 const EFFECTIVE_SECRET = JWT_SECRET && JWT_SECRET !== "change_moi_avec_une_vraie_cle_secrete_aleatoire"
@@ -92,7 +90,6 @@ const AGE_RATINGS = ["tout_public", "10+", "13+", "16+", "18+"];
 app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
 
-// Exposer l'instance Supabase sur l'objet req si besoin dans les routes
 app.use((req, res, next) => {
   req.supabase = supabase;
   next();
@@ -162,15 +159,6 @@ function authRequired(req, res, next) {
   } catch (e) {
     return res.status(401).json({ error: "Session expirée, reconnecte-toi." });
   }
-}
-
-function slugify(str) {
-  return String(str)
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 40) || "jeu";
 }
 
 function buildCodeGameHTML(title) {
@@ -291,7 +279,7 @@ app.post("/api/auth/login", async (req, res) => {
   if (!ok) return res.status(401).json({ error: "Identifiants incorrects." });
 
   if (user.banned) {
-    return res.status(403).json({ error: "Ce compte est suspendu." + (user.banReason ? " Raison : " + user.banReason : "") + " Tu peux faire une demande via le Support." });
+    return res.status(403).json({ error: "Ce compte est suspendu." + (user.banReason ? " Raison : " + user.banReason : "") });
   }
 
   const before = JSON.stringify(user);
@@ -396,7 +384,7 @@ app.post("/api/reports", authRequired, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------
-// ROUTES SUPABASE (GÉNÉRATION & SYNCHRONISATION CARTES / PROJETS)
+// ROUTES SUPABASE (CARTES 3D)
 // ---------------------------------------------------------------------
 
 app.post("/api/maps/publish", async (req, res) => {
@@ -453,7 +441,7 @@ function projectSummary(p) {
 function requireVerified(req, res, next) {
   if (!req.user.verified) {
     return res.status(403).json({
-      error: "Ton compte doit être vérifié par la plateforme avant de créer ou publier des jeux. Fais une demande depuis le Support.",
+      error: "Ton compte doit être vérifié avant de créer ou publier des jeux.",
     });
   }
   next();
@@ -567,7 +555,7 @@ app.post("/api/studio/projects/:id/submit", authRequired, requireVerified, async
     return res.status(400).json({ error: "Merci de choisir une tranche d'âge valide." });
   }
   if (certified !== true) {
-    return res.status(400).json({ error: "Tu dois certifier que ce contenu t'appartient et respecte les règles du site." });
+    return res.status(400).json({ error: "Tu dois certifier que ce contenu t'appartient." });
   }
 
   if (genre !== undefined) project.genre = String(genre).slice(0, 40);
@@ -599,7 +587,7 @@ app.post("/api/studio/upload", authRequired, requireVerified, upload.single("zip
       return res.status(400).json({ error: "Merci de choisir une tranche d'âge valide." });
     }
     if (req.body.certified !== "true") {
-      return res.status(400).json({ error: "Tu dois certifier que ce contenu t'appartient et respecte les règles du site." });
+      return res.status(400).json({ error: "Tu dois certifier que ce contenu t'appartient." });
     }
 
     const db = readDB();
@@ -886,7 +874,7 @@ app.post("/api/admin/users/:id/role", authRequired, adminRequired, async (req, r
 });
 
 // ---------------------------------------------------------------------
-// REDIRECTION DE LA PAGE RACINE (FALLBACK HTML)
+// ROUTE RACINE
 // ---------------------------------------------------------------------
 app.get("/", (req, res) => {
   const indexPath = path.join(PUBLIC_DIR, "index.html");
@@ -898,7 +886,7 @@ app.get("/", (req, res) => {
 });
 
 // ---------------------------------------------------------------------
-// GESTIONNAIRE D'ERREURS GLOBAL
+// GESTION ERREURS
 // ---------------------------------------------------------------------
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
@@ -907,7 +895,6 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: err.message || "Erreur interne du serveur." });
 });
 
-// ---------------------------------------------------------------------
 app.listen(PORT, () => {
   console.log(`TLM Games — serveur lancé sur le port ${PORT}`);
 });

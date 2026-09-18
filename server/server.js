@@ -8,10 +8,32 @@ const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const AdmZip = require("adm-zip");
+const { createClient } = require("@supabase/supabase-js");
 const { readDB, writeDB } = require("./db");
 const TEMPLATES = require("./templates");
 
-const GAMES_DIR = path.join(__dirname, "..", "public", "games");
+// ---------------------------------------------------------------------
+// CONFIGURATION DE LA BASE DE DONNÉES SUPABASE
+// ---------------------------------------------------------------------
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://TON_PROJET.supabase.co";
+const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || "";
+const supabase = (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("TON_PROJET"))
+  ? createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+if (!supabase) {
+  console.warn("⚠️  Supabase n'est pas encore configuré dans le fichier .env (SUPABASE_URL et SUPABASE_KEY).");
+}
+
+// ---------------------------------------------------------------------
+// GESTION DES DOSSIERS ET FICHIERS STATIQUES (Compatible Render & Local)
+// ---------------------------------------------------------------------
+let PUBLIC_DIR = path.join(__dirname, "..", "public");
+if (!fs.existsSync(PUBLIC_DIR)) {
+  PUBLIC_DIR = path.join(__dirname, "public");
+}
+
+const GAMES_DIR = path.join(PUBLIC_DIR, "games");
 const COMMUNITY_DIR = path.join(GAMES_DIR, "community");
 fs.mkdirSync(COMMUNITY_DIR, { recursive: true });
 
@@ -29,12 +51,7 @@ const upload = multer({
 const app = express();
 
 // ---------------------------------------------------------------------
-// FIX IMPORTANT : dans Express 4, si une route définie avec une fonction
-// "async" lève une erreur, Express ne l'attrape PAS automatiquement — la
-// requête reste sans réponse au lieu de renvoyer une erreur JSON propre.
-// On corrige ça une fois pour toutes ici : toute route déclarée plus bas
-// avec app.get/post/put/delete est protégée automatiquement, sans avoir
-// à ajouter un try/catch dans chacune.
+// WRAPPER ASYNC GLOBAL EXPRESS
 // ---------------------------------------------------------------------
 ["get", "post", "put", "delete"].forEach((method) => {
   const original = app[method].bind(app);
@@ -52,6 +69,7 @@ const app = express();
     return original(routePath, ...wrapped);
   };
 });
+
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 const TOKEN_TTL = "30d";
@@ -68,18 +86,20 @@ const EFFECTIVE_SECRET = JWT_SECRET && JWT_SECRET !== "change_moi_avec_une_vraie
   ? JWT_SECRET
   : crypto.randomBytes(48).toString("hex");
 
-// Email défini dans .env : le compte correspondant devient automatiquement
-// administrateur (vérifié + rôle admin) à l'inscription ou à la connexion.
-// Sert à créer le tout premier compte admin sans passer par une interface.
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "").toLowerCase().trim();
-
 const AGE_RATINGS = ["tout_public", "10+", "13+", "16+", "18+"];
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(express.static(PUBLIC_DIR));
+
+// Exposer l'instance Supabase sur l'objet req si besoin dans les routes
+app.use((req, res, next) => {
+  req.supabase = supabase;
+  next();
+});
 
 // ---------------------------------------------------------------------
-// Helpers
+// HELPERS
 // ---------------------------------------------------------------------
 const USERNAME_RE = /^[a-zA-Z0-9_\-]{3,20}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -97,8 +117,6 @@ function publicUser(user) {
   };
 }
 
-// Si l'e-mail correspond à ADMIN_EMAIL (défini dans .env), on promeut
-// automatiquement ce compte administrateur + vérifié.
 function promoteIfAdminEmail(user) {
   if (ADMIN_EMAIL && user.email.toLowerCase() === ADMIN_EMAIL) {
     user.role = "admin";
@@ -113,6 +131,7 @@ function staffRequired(req, res, next) {
   }
   next();
 }
+
 function adminRequired(req, res, next) {
   if (req.user.role !== "admin") {
     return res.status(403).json({ error: "Réservé aux administrateurs." });
@@ -154,7 +173,6 @@ function slugify(str) {
     .slice(0, 40) || "jeu";
 }
 
-// Construit la page HTML finale d'un jeu créé avec l'éditeur de code du Studio.
 function buildCodeGameHTML(title) {
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -170,8 +188,6 @@ function buildCodeGameHTML(title) {
 </html>`;
 }
 
-// Écrit un projet "code" (éditeur intégré) sur le disque, dans le dossier
-// des jeux communautaires, pour qu'il devienne jouable via une URL statique.
 function writeCodeProjectToDisk(project) {
   const dir = path.join(COMMUNITY_DIR, project.id);
   fs.mkdirSync(dir, { recursive: true });
@@ -180,9 +196,6 @@ function writeCodeProjectToDisk(project) {
   return "games/community/" + project.id + "/index.html";
 }
 
-// Extrait un .zip uploadé vers un dossier de destination, en cherchant le
-// index.html (potentiellement dans un sous-dossier) et en se protégeant des
-// chemins malveillants ("zip slip": ../../etc").
 function extractZipToFolder(buffer, destDir) {
   const zip = new AdmZip(buffer);
   const entries = zip.getEntries().filter((e) => !e.isDirectory);
@@ -191,7 +204,6 @@ function extractZipToFolder(buffer, destDir) {
   if (htmlEntries.length === 0) {
     throw new Error("Le zip doit contenir un fichier index.html.");
   }
-  // On prend le index.html le moins profond (à la racine du jeu).
   htmlEntries.sort((a, b) => a.entryName.split("/").length - b.entryName.split("/").length);
   const rootEntry = htmlEntries[0];
   const baseDir = rootEntry.entryName.includes("/")
@@ -202,13 +214,13 @@ function extractZipToFolder(buffer, destDir) {
   const destReal = fs.realpathSync(destDir);
 
   entries.forEach((entry) => {
-    if (!entry.entryName.startsWith(baseDir)) return; // hors du dossier du jeu
+    if (!entry.entryName.startsWith(baseDir)) return;
     const relative = entry.entryName.slice(baseDir.length);
-    if (!relative || relative.includes("..")) return; // sécurité
+    if (!relative || relative.includes("..")) return;
 
     const targetPath = path.join(destDir, relative);
     const targetResolved = path.resolve(targetPath);
-    if (!targetResolved.startsWith(destReal)) return; // sécurité anti "zip slip"
+    if (!targetResolved.startsWith(destReal)) return;
 
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     fs.writeFileSync(targetPath, entry.getData());
@@ -216,7 +228,7 @@ function extractZipToFolder(buffer, destDir) {
 }
 
 // ---------------------------------------------------------------------
-// AUTH — création de compte / connexion / profil
+// AUTHENTIFICATION
 // ---------------------------------------------------------------------
 
 app.post("/api/auth/register", async (req, res) => {
@@ -263,7 +275,7 @@ app.post("/api/auth/register", async (req, res) => {
 });
 
 app.post("/api/auth/login", async (req, res) => {
-  const { identifier, password } = req.body || {}; // identifier = e-mail OU pseudo
+  const { identifier, password } = req.body || {};
   if (!identifier || !password) {
     return res.status(400).json({ error: "Identifiant et mot de passe requis." });
   }
@@ -297,7 +309,7 @@ app.get("/api/auth/me", authRequired, (req, res) => {
 });
 
 // ---------------------------------------------------------------------
-// BIBLIOTHÈQUE — synchronisée par compte, accessible depuis n'importe quel appareil
+// BIBLIOTHÈQUE
 // ---------------------------------------------------------------------
 
 app.get("/api/library", authRequired, (req, res) => {
@@ -320,8 +332,6 @@ app.post("/api/library", authRequired, async (req, res) => {
   res.status(201).json({ games: entries.map((e) => e.gameId) });
 });
 
-// Fusionne en une fois une liste de jeux "invité" (localStorage) dans le compte,
-// utilisé juste après connexion/inscription pour ne rien perdre.
 app.post("/api/library/merge", authRequired, async (req, res) => {
   const { gameIds } = req.body || {};
   if (!Array.isArray(gameIds)) return res.status(400).json({ error: "gameIds doit être un tableau." });
@@ -353,7 +363,7 @@ app.delete("/api/library/:gameId", authRequired, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------
-// CATALOGUE PUBLIC — uniquement les jeux communautaires APPROUVÉS par la modération
+// CATALOGUE PUBLIC ET SIGNALEMENTS
 // ---------------------------------------------------------------------
 
 app.get("/api/catalog", (req, res) => {
@@ -386,7 +396,43 @@ app.post("/api/reports", authRequired, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------
-// STUDIO — mes projets (créer / éditer / soumettre à la modération)
+// ROUTES SUPABASE (GÉNÉRATION & SYNCHRONISATION CARTES / PROJETS)
+// ---------------------------------------------------------------------
+
+app.post("/api/maps/publish", async (req, res) => {
+  const { name, data, userId } = req.body || {};
+  if (!supabase) {
+    return res.status(503).json({ error: "Service Supabase non configuré." });
+  }
+
+  const { data: mapCreated, error } = await supabase
+    .from("maps")
+    .insert([{ name: name || "Carte sans nom", data, user_id: userId, status: "EN_ATTENTE" }]);
+
+  if (error) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
+  res.json({ success: true, message: "Carte envoyée à la modération !" });
+});
+
+app.get("/api/maps", async (req, res) => {
+  if (!supabase) {
+    return res.json([]);
+  }
+
+  const { data: maps, error } = await supabase
+    .from("maps")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
+  res.json(maps);
+});
+
+// ---------------------------------------------------------------------
+// STUDIO
 // ---------------------------------------------------------------------
 
 function projectSummary(p) {
@@ -397,7 +443,7 @@ function projectSummary(p) {
     genre: p.genre,
     desc: p.desc,
     ageRating: p.ageRating || null,
-    status: p.status, // draft | pending | approved | rejected
+    status: p.status,
     rejectionReason: p.rejectionReason || null,
     updatedAt: p.updatedAt,
     submittedAt: p.submittedAt || null,
@@ -468,13 +514,11 @@ app.put("/api/studio/projects/:id", authRequired, async (req, res) => {
 
   const { title, code, genre, desc } = req.body || {};
   if (title !== undefined) project.title = String(title).trim().slice(0, 60) || project.title;
-  if (code !== undefined) project.code = String(code).slice(0, 300000); // ~300 Ko de code max
+  if (code !== undefined) project.code = String(code).slice(0, 300000);
   if (genre !== undefined) project.genre = String(genre).slice(0, 40);
   if (desc !== undefined) project.desc = String(desc).slice(0, 200);
   project.updatedAt = new Date().toISOString();
 
-  // Toute modification d'un jeu déjà approuvé le repasse automatiquement en
-  // attente de revalidation, et le retire de la boutique publique en attendant.
   if (project.status === "approved") {
     project.status = "pending";
     project.submittedAt = new Date().toISOString();
@@ -513,7 +557,6 @@ app.post("/api/studio/projects/:id/withdraw", authRequired, async (req, res) => 
   res.json({ project: projectSummary(project) });
 });
 
-// Envoie le jeu à la modération — ne le rend PAS public tout de suite.
 app.post("/api/studio/projects/:id/submit", authRequired, requireVerified, async (req, res) => {
   const db = readDB();
   const project = db.projects.find((p) => p.id === req.params.id && p.ownerId === req.user.id);
@@ -534,7 +577,7 @@ app.post("/api/studio/projects/:id/submit", authRequired, requireVerified, async
   project.moderatorNote = String(moderatorNote || "").slice(0, 400);
 
   if (project.type === "code") {
-    writeCodeProjectToDisk(project); // écrit les fichiers pour que la modération puisse tester
+    writeCodeProjectToDisk(project);
   }
 
   project.status = "pending";
@@ -546,7 +589,6 @@ app.post("/api/studio/projects/:id/submit", authRequired, requireVerified, async
   res.json({ project: projectSummary(project) });
 });
 
-// Import d'un jeu déjà codé (zip contenant un index.html) — passe aussi par la modération.
 app.post("/api/studio/upload", authRequired, requireVerified, upload.single("zipfile"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Aucun fichier reçu." });
@@ -595,8 +637,7 @@ app.post("/api/studio/upload", authRequired, requireVerified, upload.single("zip
 });
 
 // ---------------------------------------------------------------------
-// SUPPORT — contacter l'équipe, demander une vérification de compte,
-// contester un bannissement, etc.
+// SUPPORT
 // ---------------------------------------------------------------------
 
 const TICKET_CATEGORIES = ["verification", "ban_appeal", "bug", "content_report", "other"];
@@ -660,7 +701,7 @@ app.post("/api/support/tickets/:id/reply", authRequired, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------
-// ADMIN / MODÉRATION — réservé au staff (role admin ou moderator)
+// ADMIN / MODÉRATION
 // ---------------------------------------------------------------------
 
 app.get("/api/admin/projects/pending", authRequired, staffRequired, (req, res) => {
@@ -739,7 +780,7 @@ app.post("/api/admin/reports/:id/resolve", authRequired, staffRequired, async (r
   const db = readDB();
   const report = db.reports.find((r) => r.id === req.params.id);
   if (!report) return res.status(404).json({ error: "Signalement introuvable." });
-  const { action } = req.body || {}; // 'dismiss' | 'unpublish'
+  const { action } = req.body || {};
 
   if (action === "unpublish" && report.projectId) {
     const project = db.projects.find((p) => p.id === report.projectId);
@@ -832,8 +873,6 @@ app.post("/api/admin/users/:id/unban", authRequired, staffRequired, async (req, 
   res.json({ user: publicUser(user) });
 });
 
-// Seul un admin (pas un simple modérateur) peut changer les rôles — évite
-// qu'un modérateur ne se promeuve lui-même ou ne promeuve un tiers.
 app.post("/api/admin/users/:id/role", authRequired, adminRequired, async (req, res) => {
   const db = readDB();
   const user = db.users.find((u) => u.id === req.params.id);
@@ -847,13 +886,22 @@ app.post("/api/admin/users/:id/role", authRequired, adminRequired, async (req, r
 });
 
 // ---------------------------------------------------------------------
-// Gestionnaire d'erreurs global : renvoie du JSON propre (erreurs Multer,
-// JSON mal formé envoyé par le client, etc.) plutôt qu'une page HTML brute.
+// REDIRECTION DE LA PAGE RACINE (FALLBACK HTML)
+// ---------------------------------------------------------------------
+app.get("/", (req, res) => {
+  const indexPath = path.join(PUBLIC_DIR, "index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.send("TLM Games API active");
+  }
+});
+
+// ---------------------------------------------------------------------
+// GESTIONNAIRE D'ERREURS GLOBAL
 // ---------------------------------------------------------------------
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
-  // Toujours affiché dans le terminal du serveur : c'est ici qu'on voit la
-  // VRAIE cause d'un bug, même si le message envoyé au navigateur est plus court.
   console.error(`❌ Erreur sur ${req.method} ${req.originalUrl} :`, err);
   const status = err.status || err.statusCode || 500;
   res.status(status).json({ error: err.message || "Erreur interne du serveur." });
@@ -861,73 +909,5 @@ app.use((err, req, res, next) => {
 
 // ---------------------------------------------------------------------
 app.listen(PORT, () => {
-  console.log(`TLM Games — serveur lancé sur http://localhost:${PORT}`);
-});
-const express = require('express');
-const path = require('path');
-const { createClient } = require('@supabase/supabase-js');
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Middleware pour lire le JSON envoyé par le client (index.html ou studio.html)
-app.use(express.json());
-
-// 1. Servir les fichiers statiques HTML/JS du dossier "public"
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Configuration Supabase côté serveur (avec tes clés d'environnement Render)
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://TON_PROJET.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'TA_CLE_ANON_PUBLIC';
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// -------------------------------------------------------------
-// ROUTES D'API (Communication avec le reste du site)
-// -------------------------------------------------------------
-
-// Route pour recevoir une carte à publier et l'envoyer en modération
-app.post('/api/maps/publish', async (req, res) => {
-    const { name, data, userId } = req.body;
-
-    const { data: mapCreated, error } = await supabase
-        .from('maps')
-        .insert([{ name, data, user_id: userId, status: 'EN_ATTENTE' }]);
-
-    if (error) {
-        return res.status(400).json({ success: false, error: error.message });
-    }
-
-    res.json({ success: true, message: 'Carte envoyée à la modération !' });
-});
-
-// Route pour récupérer les cartes validées par la modération
-app.get('/api/maps', async (req, res) => {
-    const { data: maps, error } = await supabase
-        .from('maps')
-        .select('*')
-        .eq('status', 'VALIDE')
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        return res.status(400).json({ success: false, error: error.message });
-    }
-
-    res.json(maps);
-});
-
-// -------------------------------------------------------------
-// REDIRECTION DES PAGES
-// -------------------------------------------------------------
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/studio', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'studio.html'));
-});
-
-// Lancement du serveur
-app.listen(PORT, () => {
-    console.log(`Serveur prêt sur http://localhost:${PORT}`);
+  console.log(`TLM Games — serveur lancé sur le port ${PORT}`);
 });
